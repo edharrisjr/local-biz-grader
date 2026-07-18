@@ -2,11 +2,12 @@ import type { PageSpeedResult } from "./types";
 
 /**
  * Runs a mobile PageSpeed Insights audit against a business's website.
- * Requires GOOGLE_MAPS_API_KEY (same Google Cloud key works if the
- * "PageSpeed Insights API" is enabled on the project).
+ * Requires PAGESPEED_API_KEY — a separate key from GOOGLE_MAPS_API_KEY,
+ * since PageSpeed Insights isn't part of the Google Maps Platform API
+ * family and can't be added to a Maps Platform key's restriction list.
  */
 export async function getPageSpeed(url: string): Promise<PageSpeedResult> {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  const apiKey = process.env.PAGESPEED_API_KEY;
   const empty: PageSpeedResult = {
     performanceScore: null,
     mobileFriendly: null,

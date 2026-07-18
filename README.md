@@ -29,8 +29,14 @@ tagged/scored contact for follow-up.
 
 1. `npm install`
 2. Copy `.env.example` to `.env.local` and fill in:
-   - `GOOGLE_MAPS_API_KEY` — a Google Cloud key with **Places API (New)** and
-     **PageSpeed Insights API** enabled.
+   - `GOOGLE_MAPS_API_KEY` — a Google Maps Platform key with **Places API
+     (New)** enabled.
+   - `PAGESPEED_API_KEY` — a *separate* Google Cloud API key restricted to
+     **PageSpeed Insights API**. This has to be a plain API key created via
+     Credentials → Create Credentials → API key, not one made through the
+     Maps Platform console — PageSpeed Insights isn't part of the Maps
+     Platform API family, so a Maps Platform key can never be restricted to
+     include it.
    - `GHL_API_KEY` / `GHL_LOCATION_ID` — a GoHighLevel Private Integration
      token (Settings → Private Integrations, `contacts.write` scope) and the
      sub-account's location ID.
