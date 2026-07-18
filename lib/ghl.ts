@@ -6,7 +6,7 @@ const GHL_API_VERSION = "2021-07-28";
 interface LeadFormInput {
   firstName?: string;
   lastName?: string;
-  email: string;
+  email?: string;
   phone?: string;
 }
 
@@ -51,7 +51,11 @@ function buildReportUrl(report: Report): string {
  * contacts.write scope, and the sub-account's GHL_LOCATION_ID.
  * https://highlevel.stoplight.io/docs/integrations/
  */
-export async function pushLeadToGhl(lead: LeadFormInput, report: Report) {
+export async function pushLeadToGhl(
+  lead: LeadFormInput,
+  report: Report,
+  extraTags: string[] = []
+) {
   const apiKey = process.env.GHL_API_KEY;
   const locationId = process.env.GHL_LOCATION_ID;
 
@@ -63,6 +67,7 @@ export async function pushLeadToGhl(lead: LeadFormInput, report: Report) {
     "local-biz-grader",
     `grade-${report.grade.toLowerCase()}`,
     `lp-${report.input.landingPage ?? "unknown"}`,
+    ...extraTags,
   ];
 
   const customFields = [

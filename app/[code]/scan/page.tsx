@@ -9,6 +9,7 @@ import { SearchRankingCard } from "@/components/SearchRankingCard";
 import { WebsiteChecklistCard } from "@/components/WebsiteChecklistCard";
 import { DollarLossCard } from "@/components/DollarLossCard";
 import { LeadForm } from "@/components/LeadForm";
+import { ReportGate } from "@/components/ReportGateLoader";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,16 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
   const displayName = report.place?.name || report.input.name;
   const lossEstimate = computeLossEstimate(report.categories);
 
-  return (
+  // Twilio Verify isn't configured in every environment (e.g. local dev) —
+  // without it the gate would have no way to ever unlock, so only render
+  // it when the app can actually send/check codes.
+  const otpEnabled = Boolean(
+    process.env.TWILIO_ACCOUNT_SID &&
+      process.env.TWILIO_AUTH_TOKEN &&
+      process.env.TWILIO_VERIFY_SERVICE_SID
+  );
+
+  const content = (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-14 px-6 py-16 sm:py-20">
       <header className="animate-fade-in-up text-center">
         <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-black/5 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-black/60 dark:bg-white/10 dark:text-white/60">
@@ -124,4 +134,6 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
       )}
     </main>
   );
+
+  return otpEnabled ? <ReportGate report={report}>{content}</ReportGate> : content;
 }
