@@ -6,6 +6,7 @@ import {
   ArrowUp,
   BadgeCheck,
   Check,
+  ClipboardCheck,
   Crown,
   ImageOff,
   MapPin,
@@ -13,6 +14,7 @@ import {
   ShoppingCart,
   Sparkle,
   Star,
+  Trophy,
   TrendingUp,
   type LucideIcon,
 } from "lucide-react";
@@ -60,19 +62,37 @@ function websiteLabel(url: string | null): string {
   }
 }
 
+const STEP_IDS = [
+  "business",
+  "gbp",
+  "reviews",
+  "photos",
+  "website",
+  "ordering",
+  "localSeo",
+  "competitors",
+  "searchRank",
+  "checklist",
+] as const;
+
 function buildSteps(businessLabel: string, website: string | null) {
-  return [
-    { id: "business", label: businessLabel },
-    { id: "gbp", label: "Google Business Profile" },
-    { id: "reviews", label: "Reviews & ratings" },
-    { id: "photos", label: "Photo quality and quantity" },
-    { id: "website", label: websiteLabel(website) },
-    { id: "ordering", label: "Online ordering & booking" },
-    { id: "localSeo", label: "Local SEO signals" },
-  ] as const;
+  const labels: Record<(typeof STEP_IDS)[number], string> = {
+    business: businessLabel,
+    gbp: "Google Business Profile",
+    reviews: "Reviews & ratings",
+    photos: "Photo quality and quantity",
+    website: websiteLabel(website),
+    ordering: "Online ordering & booking",
+    localSeo: "Local SEO signals",
+    competitors: "Nearby competitors",
+    searchRank: "Google search ranking",
+    checklist: "Website technical checklist",
+  };
+  return STEP_IDS.map((id) => ({ id, label: labels[id] }));
 }
 
 const STEP_DURATION_MS = 1400;
+const TOTAL_SCAN_SECONDS = Math.ceil((STEP_IDS.length * STEP_DURATION_MS + 400) / 1000);
 
 export function ScanIntro() {
   const router = useRouter();
@@ -83,7 +103,7 @@ export function ScanIntro() {
   const [selected, setSelected] = useState<PlacePrediction | null>(null);
   const [preview, setPreview] = useState<PlacePreview | null>(null);
   const [activeStep, setActiveStep] = useState(-1);
-  const [secondsRemaining, setSecondsRemaining] = useState(8);
+  const [secondsRemaining, setSecondsRemaining] = useState(TOTAL_SCAN_SECONDS);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -123,7 +143,7 @@ export function ScanIntro() {
       })
       .catch(() => {});
 
-    const stepCount = 7;
+    const stepCount = STEP_IDS.length - 1;
     const timeouts: ReturnType<typeof setTimeout>[] = [];
     // Runs to stepCount (inclusive) so the final step also gets to show its
     // checkmark before redirecting, instead of staying on its spinner.
@@ -210,6 +230,12 @@ export function ScanIntro() {
             <OrderingCheckCard />
           ) : currentStepId === "localSeo" ? (
             <LocalSeoCheckCard category={preview?.primaryCategory ?? null} />
+          ) : currentStepId === "competitors" ? (
+            <CompetitorsCheckCard category={preview?.primaryCategory ?? null} />
+          ) : currentStepId === "searchRank" ? (
+            <SearchRankCheckCard category={preview?.primaryCategory ?? null} />
+          ) : currentStepId === "checklist" ? (
+            <ChecklistCheckCard />
           ) : (
             <BrowserMockup url={null} />
           )}
@@ -542,6 +568,36 @@ function LocalSeoCheckCard({ category }: { category: string | null }) {
       icon={TrendingUp}
       title="Analyzing local search visibility"
       subtitle={category ? `Ranking signals for "${category}"` : "Category, citations, and listing signals"}
+    />
+  );
+}
+
+function CompetitorsCheckCard({ category }: { category: string | null }) {
+  return (
+    <CheckingCard
+      icon={Trophy}
+      title="Comparing nearby competitors"
+      subtitle={category ? `Ranking against other ${category} listings` : "Ranking against nearby businesses"}
+    />
+  );
+}
+
+function SearchRankCheckCard({ category }: { category: string | null }) {
+  return (
+    <CheckingCard
+      icon={Search}
+      title="Checking your Google search ranking"
+      subtitle={category ? `Where you show up for "${category}" searches` : "Where you show up in local search results"}
+    />
+  );
+}
+
+function ChecklistCheckCard() {
+  return (
+    <CheckingCard
+      icon={ClipboardCheck}
+      title="Running a technical website scan"
+      subtitle="Alt tags, meta data, page speed, and more"
     />
   );
 }
