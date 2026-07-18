@@ -1,0 +1,56 @@
+import { getPlaceDetails } from "./google-places";
+import { getPageSpeed } from "./pagespeed";
+import { detectOrderingSignals } from "./ordering";
+import { buildCategoryScores, computeOverallScore, scoreToGrade } from "./scoring";
+import type { Report, ReportInput } from "./types";
+
+/** Prevents a slow third-party site from stalling the whole report. */
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
+export async function buildReport(input: ReportInput): Promise<Report> {
+  const errors: string[] = [];
+
+  const place = await getPlaceDetails(input.placeId).catch((err) => {
+    errors.push(`Google Places lookup failed: ${err.message}`);
+    return null;
+  });
+
+  const [pageSpeed, ordering] = await Promise.all([
+    place?.website
+      ? withTimeout(
+          getPageSpeed(place.website),
+          15000,
+          { performanceScore: null, mobileFriendly: null, fetched: false }
+        )
+      : Promise.resolve(null),
+    withTimeout(
+      detectOrderingSignals(place?.website),
+      8000,
+      {
+        hasWebsite: Boolean(place?.website),
+        detectedPlatforms: [],
+        hasOnlineOrdering: false,
+        hasReservations: false,
+      }
+    ),
+  ]);
+
+  const categories = buildCategoryScores(place, pageSpeed, ordering);
+  const overallScore = computeOverallScore(categories);
+
+  return {
+    input,
+    place,
+    pageSpeed,
+    ordering,
+    categories,
+    overallScore,
+    grade: scoreToGrade(overallScore),
+    errors,
+  };
+}
