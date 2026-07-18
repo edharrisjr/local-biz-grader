@@ -87,12 +87,21 @@ export interface CompetitorRanking {
   competitors: Competitor[];
 }
 
+export interface SearchRanking {
+  query: string;
+  mapPackRank: number | null;
+  organicRank: number | null;
+  topMapPackResult: string | null;
+  topOrganicResult: string | null;
+}
+
 export interface Report {
   input: ReportInput;
   place: PlaceDetails | null;
   pageSpeed: PageSpeedResult | null;
   ordering: OrderingSignals | null;
   competitorRanking: CompetitorRanking | null;
+  searchRanking: SearchRanking | null;
   categories: CategoryScore[];
   overallScore: number;
   grade: string;

@@ -5,6 +5,7 @@ import { CATEGORY_BENCHMARKS, OVERALL_BENCHMARK, computeLossEstimate } from "@/l
 import { ScoreGauge } from "@/components/ScoreGauge";
 import { CategoryCard } from "@/components/CategoryCard";
 import { CompetitorTable } from "@/components/CompetitorTable";
+import { SearchRankingCard } from "@/components/SearchRankingCard";
 import { DollarLossCard } from "@/components/DollarLossCard";
 import { LeadForm } from "@/components/LeadForm";
 
@@ -80,6 +81,12 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
           </div>
         ))}
       </section>
+
+      {report.searchRanking && (
+        <div className="animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
+          <SearchRankingCard ranking={report.searchRanking} />
+        </div>
+      )}
 
       {report.competitorRanking && (
         <div className="animate-fade-in-up" style={{ animationDelay: "0.44s" }}>

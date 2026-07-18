@@ -2,6 +2,7 @@ import { getPlaceDetails } from "./google-places";
 import { getPageSpeed } from "./pagespeed";
 import { detectOrderingSignals } from "./ordering";
 import { buildCompetitorRanking } from "./competitors";
+import { getSearchRanking } from "./serper";
 import { buildCategoryScores, computeOverallScore, scoreToGrade } from "./scoring";
 import type { Report, ReportInput } from "./types";
 
@@ -21,7 +22,7 @@ export async function buildReport(input: ReportInput): Promise<Report> {
     return null;
   });
 
-  const [pageSpeed, ordering, competitorRanking] = await Promise.all([
+  const [pageSpeed, ordering, competitorRanking, searchRanking] = await Promise.all([
     place?.website
       ? withTimeout(
           getPageSpeed(place.website),
@@ -42,6 +43,13 @@ export async function buildReport(input: ReportInput): Promise<Report> {
     place
       ? withTimeout(buildCompetitorRanking(input.placeId, place), 8000, null)
       : Promise.resolve(null),
+    place && input.city
+      ? withTimeout(
+          getSearchRanking(place.name, place.website, place.primaryCategory ?? "business", input.city),
+          8000,
+          null
+        )
+      : Promise.resolve(null),
   ]);
 
   const categories = buildCategoryScores(place, pageSpeed, ordering);
@@ -53,6 +61,7 @@ export async function buildReport(input: ReportInput): Promise<Report> {
     pageSpeed,
     ordering,
     competitorRanking,
+    searchRanking,
     categories,
     overallScore,
     grade: scoreToGrade(overallScore),
