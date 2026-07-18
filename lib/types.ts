@@ -11,6 +11,10 @@ export interface CategoryScore {
   score: number; // 0-100
   summary: string;
   findings: string[];
+  /** Curated subset of findings that represent real problems, used for the
+   *  dollar-loss estimate — findings includes positive/neutral statements
+   *  too, this doesn't. */
+  issues: string[];
 }
 
 export interface ReportInput {

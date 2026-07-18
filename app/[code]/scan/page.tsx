@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { buildReport } from "@/lib/report";
-import { CATEGORY_BENCHMARKS, OVERALL_BENCHMARK } from "@/lib/scoring";
+import { CATEGORY_BENCHMARKS, OVERALL_BENCHMARK, computeLossEstimate } from "@/lib/scoring";
 import { ScoreGauge } from "@/components/ScoreGauge";
 import { CategoryCard } from "@/components/CategoryCard";
 import { CompetitorTable } from "@/components/CompetitorTable";
+import { DollarLossCard } from "@/components/DollarLossCard";
 import { LeadForm } from "@/components/LeadForm";
 
 export const dynamic = "force-dynamic";
@@ -38,7 +39,7 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
   });
 
   const displayName = report.place?.name || report.input.name;
-  const weakest = [...report.categories].sort((a, b) => a.score - b.score)[0];
+  const lossEstimate = computeLossEstimate(report.categories);
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-14 px-6 py-16 sm:py-20">
@@ -64,18 +65,9 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
         <ScoreGauge score={report.overallScore} grade={report.grade} benchmark={OVERALL_BENCHMARK} />
       </div>
 
-      {weakest && weakest.score < 60 && (
-        <div
-          className="animate-fade-in-up rounded-2xl border border-red-500/20 bg-red-500/5 p-5 text-center"
-          style={{ animationDelay: "0.15s" }}
-        >
-          <p className="text-sm font-medium text-red-600 dark:text-red-400">
-            Biggest opportunity: <span className="font-semibold">{weakest.label}</span> scored only{" "}
-            {weakest.score}/100 — most customers won&apos;t wait around for a business that&apos;s
-            behind here.
-          </p>
-        </div>
-      )}
+      <div className="animate-fade-in-up" style={{ animationDelay: "0.15s" }}>
+        <DollarLossCard estimate={lossEstimate} />
+      </div>
 
       <section className="grid gap-4 sm:grid-cols-2">
         {report.categories.map((category, i) => (
