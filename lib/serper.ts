@@ -45,35 +45,41 @@ export async function getSearchRanking(
 
   const query = `best ${category.toLowerCase()} in ${city}`;
 
-  const res = await fetch("https://google.serper.dev/search", {
-    method: "POST",
-    headers: {
-      "X-API-KEY": apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ q: query, gl: "us" }),
-    next: { revalidate: 86400 },
-  });
+  try {
+    const res = await fetch("https://google.serper.dev/search", {
+      method: "POST",
+      headers: {
+        "X-API-KEY": apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ q: query, gl: "us" }),
+      next: { revalidate: 86400 },
+    });
 
-  if (!res.ok) return null;
+    if (!res.ok) return null;
 
-  const data: SerperResponse = await res.json();
-  const targetName = normalize(businessName);
-  const targetHost = website ? hostnameOf(website) : "";
+    const data: SerperResponse = await res.json();
+    const targetName = normalize(businessName);
+    const targetHost = website ? hostnameOf(website) : "";
 
-  const places = data.places ?? [];
-  const mapPackMatch = places.find((p) => p.title && normalize(p.title) === targetName);
+    const places = data.places ?? [];
+    const mapPackMatch = places.find((p) => p.title && normalize(p.title) === targetName);
 
-  const organic = data.organic ?? [];
-  const organicMatch = organic.find(
-    (r) => targetHost && r.link && hostnameOf(r.link) === targetHost
-  );
+    const organic = data.organic ?? [];
+    const organicMatch = organic.find(
+      (r) => targetHost && r.link && hostnameOf(r.link) === targetHost
+    );
 
-  return {
-    query,
-    mapPackRank: mapPackMatch?.position ?? null,
-    organicRank: organicMatch?.position ?? null,
-    topMapPackResult: places[0]?.title ?? null,
-    topOrganicResult: organic[0]?.title ?? null,
-  };
+    return {
+      query,
+      mapPackRank: mapPackMatch?.position ?? null,
+      organicRank: organicMatch?.position ?? null,
+      topMapPackResult: places[0]?.title ?? null,
+      topOrganicResult: organic[0]?.title ?? null,
+    };
+  } catch {
+    // Network failure (e.g. Serper unreachable) — degrade to no ranking
+    // data rather than crashing the whole report page.
+    return null;
+  }
 }
