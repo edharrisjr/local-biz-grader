@@ -49,6 +49,8 @@ export interface PlaceDetails {
   hasHours: boolean;
   openNow?: boolean;
   priceLevel?: string;
+  description?: string;
+  location?: { lat: number; lng: number };
   reviews: PlaceReview[];
 }
 

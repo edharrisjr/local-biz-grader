@@ -34,7 +34,18 @@ interface PlacePreview {
   formattedAddress: string | null;
   reviews: PlaceReview[];
   photoNames: string[];
+  priceLevel: string | null;
+  description: string | null;
+  location: { lat: number; lng: number } | null;
 }
+
+const PRICE_LEVEL_SYMBOLS: Record<string, string> = {
+  PRICE_LEVEL_FREE: "Free",
+  PRICE_LEVEL_INEXPENSIVE: "$",
+  PRICE_LEVEL_MODERATE: "$$",
+  PRICE_LEVEL_EXPENSIVE: "$$$",
+  PRICE_LEVEL_VERY_EXPENSIVE: "$$$$",
+};
 
 function randomCode(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -405,31 +416,63 @@ function PhotosPanel({ names, count }: { names: string[]; count: number }) {
 }
 
 function GbpCard({ preview }: { preview: PlacePreview }) {
+  const price = preview.priceLevel ? PRICE_LEVEL_SYMBOLS[preview.priceLevel] : null;
+  const firstPhoto = preview.photoNames[0];
+
   return (
-    <div className="rounded-xl border border-black/10 bg-white p-6 shadow-sm">
-      <div className="mb-4 flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700">
-          <MapPin size={18} />
-        </span>
-        <div>
-          <p className="font-semibold text-black/85">{preview.name}</p>
-          {preview.primaryCategory && (
-            <p className="text-sm text-black/45">{preview.primaryCategory}</p>
+    <div className="overflow-hidden rounded-xl border border-black/10 bg-white shadow-sm">
+      {(firstPhoto || preview.location) && (
+        <div className="flex h-36 gap-0.5">
+          {firstPhoto && (
+            // eslint-disable-next-line @next/next/no-img-element -- proxied Google photo
+            <img
+              src={`/api/place-photo?name=${encodeURIComponent(firstPhoto)}`}
+              alt=""
+              className="h-full w-1/3 object-cover"
+            />
+          )}
+          {preview.location && (
+            // eslint-disable-next-line @next/next/no-img-element -- proxied Maps Static image
+            <img
+              src={`/api/place-map?lat=${preview.location.lat}&lng=${preview.location.lng}`}
+              alt="Map"
+              className={`h-full object-cover ${firstPhoto ? "w-2/3" : "w-full"}`}
+            />
           )}
         </div>
-      </div>
-      {preview.rating != null && (
-        <div className="mb-3 flex items-center gap-2">
-          <StarRow rating={preview.rating} />
-          <span className="text-sm text-black/60">
-            {preview.rating.toFixed(1)} ({preview.userRatingCount ?? 0} reviews)
-          </span>
+      )}
+
+      <div className="p-5">
+        <p className="font-semibold text-black/85">{preview.name}</p>
+
+        <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {preview.rating != null && (
+            <>
+              <StarRow rating={preview.rating} />
+              <span className="text-sm text-black/60">{preview.rating.toFixed(1)}</span>
+            </>
+          )}
+          {preview.primaryCategory && (
+            <>
+              <span className="text-black/25">|</span>
+              <span className="text-sm text-black/50">{preview.primaryCategory}</span>
+            </>
+          )}
+          {price && (
+            <>
+              <span className="text-black/25">|</span>
+              <span className="text-sm text-black/50">{price}</span>
+            </>
+          )}
         </div>
-      )}
-      {preview.formattedAddress && (
-        <p className="mb-3 text-sm text-black/55">{preview.formattedAddress}</p>
-      )}
-      <p className="text-sm text-black/45">{preview.photoCount} photos on file</p>
+
+        {preview.description && (
+          <p className="mb-2 line-clamp-2 text-sm text-black/55">{preview.description}</p>
+        )}
+        {preview.formattedAddress && (
+          <p className="text-sm text-black/45">{preview.formattedAddress}</p>
+        )}
+      </div>
     </div>
   );
 }

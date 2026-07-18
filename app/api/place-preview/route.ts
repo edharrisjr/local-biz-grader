@@ -18,5 +18,8 @@ export async function GET(request: Request) {
     formattedAddress: place?.formattedAddress ?? null,
     reviews: place?.reviews ?? [],
     photoNames: place?.photoNames ?? [],
+    priceLevel: place?.priceLevel ?? null,
+    description: place?.description ?? null,
+    location: place?.location ?? null,
   });
 }

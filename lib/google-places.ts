@@ -14,6 +14,8 @@ const FIELD_MASK = [
   "currentOpeningHours",
   "priceLevel",
   "reviews",
+  "location",
+  "editorialSummary",
 ].join(",");
 
 interface RawReview {
@@ -69,6 +71,11 @@ export async function getPlaceDetails(
     hasHours: Boolean(data.regularOpeningHours),
     openNow: data.currentOpeningHours?.openNow,
     priceLevel: data.priceLevel,
+    description: data.editorialSummary?.text,
+    location:
+      data.location?.latitude != null && data.location?.longitude != null
+        ? { lat: data.location.latitude, lng: data.location.longitude }
+        : undefined,
     reviews: (Array.isArray(data.reviews) ? data.reviews : [])
       .slice(0, 5)
       .map((r: RawReview) => ({
