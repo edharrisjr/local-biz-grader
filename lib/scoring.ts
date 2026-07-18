@@ -227,6 +227,15 @@ function scoreLocalSeo(place: PlaceDetails | null): CategoryScore {
   };
 }
 
+/** Rough "typical local business" reference points for the comparison bars. */
+export const CATEGORY_BENCHMARKS: Record<CategoryScore["id"], number> = {
+  gbp: 72,
+  reviews: 68,
+  website: 58,
+  ordering: 45,
+  localSeo: 65,
+};
+
 const WEIGHTS: Record<CategoryScore["id"], number> = {
   gbp: 0.2,
   reviews: 0.25,
@@ -264,3 +273,10 @@ export function computeOverallScore(categories: CategoryScore[]): number {
   );
   return clamp(total);
 }
+
+export const OVERALL_BENCHMARK = clamp(
+  Object.entries(CATEGORY_BENCHMARKS).reduce(
+    (sum, [id, value]) => sum + value * WEIGHTS[id as CategoryScore["id"]],
+    0
+  )
+);

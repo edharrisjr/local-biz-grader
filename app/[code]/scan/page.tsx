@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
+import { Sparkles } from "lucide-react";
 import { buildReport } from "@/lib/report";
+import { CATEGORY_BENCHMARKS, OVERALL_BENCHMARK } from "@/lib/scoring";
 import { ScoreGauge } from "@/components/ScoreGauge";
 import { CategoryCard } from "@/components/CategoryCard";
 import { LeadForm } from "@/components/LeadForm";
@@ -35,30 +37,69 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
   });
 
   const displayName = report.place?.name || report.input.name;
+  const weakest = [...report.categories].sort((a, b) => a.score - b.score)[0];
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-10 px-6 py-16">
-      <header className="text-center">
-        <p className="mb-2 text-sm font-medium uppercase tracking-wide text-black/50 dark:text-white/50">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-14 px-6 py-16 sm:py-20">
+      <header className="animate-fade-in-up text-center">
+        <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-black/5 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-black/60 dark:bg-white/10 dark:text-white/60">
+          <Sparkles size={12} />
           Free Online Presence Audit
-        </p>
-        <h1 className="text-3xl font-bold sm:text-4xl">
+        </span>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
           {displayName}
           {report.input.city ? `, ${report.input.city}` : ""}
         </h1>
-        <p className="mt-2 text-black/60 dark:text-white/60">
-          Here&apos;s how your online presence stacks up right now.
+        <p className="mx-auto mt-3 max-w-md text-black/60 dark:text-white/60">
+          Here&apos;s how your online presence stacks up against a typical local
+          business right now.
         </p>
       </header>
 
-      <div className="flex justify-center">
-        <ScoreGauge score={report.overallScore} grade={report.grade} />
+      <div
+        className="flex animate-fade-in-up justify-center"
+        style={{ animationDelay: "0.1s" }}
+      >
+        <ScoreGauge score={report.overallScore} grade={report.grade} benchmark={OVERALL_BENCHMARK} />
       </div>
 
+      {weakest && weakest.score < 60 && (
+        <div
+          className="animate-fade-in-up rounded-2xl border border-red-500/20 bg-red-500/5 p-5 text-center"
+          style={{ animationDelay: "0.15s" }}
+        >
+          <p className="text-sm font-medium text-red-600 dark:text-red-400">
+            Biggest opportunity: <span className="font-semibold">{weakest.label}</span> scored only{" "}
+            {weakest.score}/100 — most customers won&apos;t wait around for a business that&apos;s
+            behind here.
+          </p>
+        </div>
+      )}
+
       <section className="grid gap-4 sm:grid-cols-2">
-        {report.categories.map((category) => (
-          <CategoryCard key={category.id} category={category} />
+        {report.categories.map((category, i) => (
+          <div
+            key={category.id}
+            className="animate-fade-in-up"
+            style={{ animationDelay: `${0.2 + i * 0.06}s` }}
+          >
+            <CategoryCard category={category} benchmark={CATEGORY_BENCHMARKS[category.id]} />
+          </div>
         ))}
+      </section>
+
+      <section
+        className="animate-fade-in-up rounded-2xl bg-black/[0.03] p-6 dark:bg-white/[0.04]"
+        style={{ animationDelay: "0.5s" }}
+      >
+        <h2 className="mb-2 font-semibold">Why this matters</h2>
+        <p className="text-sm text-black/60 dark:text-white/60">
+          Most customers check a business online — its listing, reviews, site, and
+          ability to order or book — before ever calling or walking in. Gaps in any
+          one of these categories are gaps in how many of those people become
+          customers. The good news: every category above is fixable, usually in
+          days, not months.
+        </p>
       </section>
 
       <LeadForm report={report} />
