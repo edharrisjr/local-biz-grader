@@ -1,6 +1,8 @@
 import { getPlaceDetails } from "./google-places";
 import { getPageSpeed } from "./pagespeed";
 import { detectOrderingSignals } from "./ordering";
+import { fetchWebsiteHtml } from "./website-html";
+import { buildWebsiteChecklist } from "./website-checklist";
 import { buildCompetitorRanking } from "./competitors";
 import { getSearchRanking } from "./serper";
 import { buildCategoryScores, computeOverallScore, scoreToGrade } from "./scoring";
@@ -22,7 +24,7 @@ export async function buildReport(input: ReportInput): Promise<Report> {
     return null;
   });
 
-  const [pageSpeed, ordering, competitorRanking, searchRanking] = await Promise.all([
+  const [pageSpeed, html, competitorRanking, searchRanking] = await Promise.all([
     place?.website
       ? withTimeout(
           getPageSpeed(place.website),
@@ -30,16 +32,7 @@ export async function buildReport(input: ReportInput): Promise<Report> {
           { performanceScore: null, mobileFriendly: null, fetched: false }
         )
       : Promise.resolve(null),
-    withTimeout(
-      detectOrderingSignals(place?.website),
-      8000,
-      {
-        hasWebsite: Boolean(place?.website),
-        detectedPlatforms: [],
-        hasOnlineOrdering: false,
-        hasReservations: false,
-      }
-    ),
+    withTimeout(fetchWebsiteHtml(place?.website), 8000, null),
     place
       ? withTimeout(buildCompetitorRanking(input.placeId, place), 8000, null)
       : Promise.resolve(null),
@@ -52,6 +45,9 @@ export async function buildReport(input: ReportInput): Promise<Report> {
       : Promise.resolve(null),
   ]);
 
+  const ordering = detectOrderingSignals(Boolean(place?.website), html);
+  const websiteChecklist = place ? buildWebsiteChecklist(html, place, input.city) : null;
+
   const categories = buildCategoryScores(place, pageSpeed, ordering);
   const overallScore = computeOverallScore(categories);
 
@@ -62,6 +58,7 @@ export async function buildReport(input: ReportInput): Promise<Report> {
     ordering,
     competitorRanking,
     searchRanking,
+    websiteChecklist,
     categories,
     overallScore,
     grade: scoreToGrade(overallScore),

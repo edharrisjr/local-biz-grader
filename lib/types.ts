@@ -87,6 +87,18 @@ export interface CompetitorRanking {
   competitors: Competitor[];
 }
 
+export interface ChecklistItem {
+  id: string;
+  label: string;
+  passed: boolean;
+  detail?: string;
+}
+
+export interface ChecklistGroup {
+  title: string;
+  items: ChecklistItem[];
+}
+
 export interface SearchRanking {
   query: string;
   mapPackRank: number | null;
@@ -102,6 +114,7 @@ export interface Report {
   ordering: OrderingSignals | null;
   competitorRanking: CompetitorRanking | null;
   searchRanking: SearchRanking | null;
+  websiteChecklist: ChecklistGroup[] | null;
   categories: CategoryScore[];
   overallScore: number;
   grade: string;

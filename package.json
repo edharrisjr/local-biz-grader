@@ -10,6 +10,7 @@
     "generate-links": "tsx scripts/generate-links.ts"
   },
   "dependencies": {
+    "cheerio": "^1.2.0",
     "csv-parse": "^7.0.1",
     "dotenv": "^17.4.2",
     "lucide-react": "^1.25.0",

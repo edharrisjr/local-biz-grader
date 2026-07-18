@@ -6,6 +6,7 @@ import { ScoreGauge } from "@/components/ScoreGauge";
 import { CategoryCard } from "@/components/CategoryCard";
 import { CompetitorTable } from "@/components/CompetitorTable";
 import { SearchRankingCard } from "@/components/SearchRankingCard";
+import { WebsiteChecklistCard } from "@/components/WebsiteChecklistCard";
 import { DollarLossCard } from "@/components/DollarLossCard";
 import { LeadForm } from "@/components/LeadForm";
 
@@ -91,6 +92,12 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
       {report.competitorRanking && (
         <div className="animate-fade-in-up" style={{ animationDelay: "0.44s" }}>
           <CompetitorTable ranking={report.competitorRanking} />
+        </div>
+      )}
+
+      {report.websiteChecklist && (
+        <div className="animate-fade-in-up" style={{ animationDelay: "0.48s" }}>
+          <WebsiteChecklistCard groups={report.websiteChecklist} />
         </div>
       )}
 
