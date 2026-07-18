@@ -44,6 +44,7 @@ export interface PlaceDetails {
   rating?: number;
   userRatingCount?: number;
   primaryCategory?: string;
+  primaryType?: string;
   photoCount: number;
   photoNames: string[];
   hasHours: boolean;
@@ -67,11 +68,27 @@ export interface OrderingSignals {
   hasReservations: boolean;
 }
 
+export interface Competitor {
+  name: string;
+  rating: number;
+  userRatingCount: number;
+  distanceMiles: number | null;
+  score: number;
+  isTarget: boolean;
+}
+
+export interface CompetitorRanking {
+  rank: number;
+  total: number;
+  competitors: Competitor[];
+}
+
 export interface Report {
   input: ReportInput;
   place: PlaceDetails | null;
   pageSpeed: PageSpeedResult | null;
   ordering: OrderingSignals | null;
+  competitorRanking: CompetitorRanking | null;
   categories: CategoryScore[];
   overallScore: number;
   grade: string;

@@ -4,6 +4,7 @@ import { buildReport } from "@/lib/report";
 import { CATEGORY_BENCHMARKS, OVERALL_BENCHMARK } from "@/lib/scoring";
 import { ScoreGauge } from "@/components/ScoreGauge";
 import { CategoryCard } from "@/components/CategoryCard";
+import { CompetitorTable } from "@/components/CompetitorTable";
 import { LeadForm } from "@/components/LeadForm";
 
 export const dynamic = "force-dynamic";
@@ -87,6 +88,12 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
           </div>
         ))}
       </section>
+
+      {report.competitorRanking && (
+        <div className="animate-fade-in-up" style={{ animationDelay: "0.44s" }}>
+          <CompetitorTable ranking={report.competitorRanking} />
+        </div>
+      )}
 
       <section
         className="animate-fade-in-up rounded-2xl bg-black/[0.03] p-6 dark:bg-white/[0.04]"

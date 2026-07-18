@@ -8,6 +8,7 @@ const FIELD_MASK = [
   "websiteUri",
   "rating",
   "userRatingCount",
+  "primaryType",
   "primaryTypeDisplayName",
   "photos",
   "regularOpeningHours",
@@ -63,6 +64,7 @@ export async function getPlaceDetails(
     rating: data.rating,
     userRatingCount: data.userRatingCount,
     primaryCategory: data.primaryTypeDisplayName?.text,
+    primaryType: data.primaryType,
     photoCount: Array.isArray(data.photos) ? data.photos.length : 0,
     photoNames: (Array.isArray(data.photos) ? data.photos : [])
       .slice(0, 6)
@@ -113,6 +115,68 @@ export async function findPlaceId(query: string): Promise<string | null> {
 
   const data = await res.json();
   return data.places?.[0]?.id ?? null;
+}
+
+interface RawNearbyPlace {
+  id: string;
+  displayName?: { text?: string };
+  rating?: number;
+  userRatingCount?: number;
+  location?: { latitude?: number; longitude?: number };
+}
+
+/**
+ * Finds nearby businesses of the same primary type via the Places API (New)
+ * Nearby Search, for the competitor-ranking section of the report.
+ */
+export async function findNearbyCompetitors(
+  placeId: string,
+  primaryType: string,
+  location: { lat: number; lng: number },
+  radiusMeters = 8000
+): Promise<Array<{ id: string; name: string; rating: number; userRatingCount: number; location: { lat: number; lng: number } | null }>> {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey) {
+    throw new Error("GOOGLE_MAPS_API_KEY is not set");
+  }
+
+  const res = await fetch("https://places.googleapis.com/v1/places:searchNearby", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Goog-FieldMask": "places.id,places.displayName,places.rating,places.userRatingCount,places.location",
+    },
+    body: JSON.stringify({
+      includedTypes: [primaryType],
+      maxResultCount: 15,
+      rankPreference: "POPULARITY",
+      locationRestriction: {
+        circle: {
+          center: { latitude: location.lat, longitude: location.lng },
+          radius: radiusMeters,
+        },
+      },
+    }),
+  });
+
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  const places: RawNearbyPlace[] = Array.isArray(data.places) ? data.places : [];
+
+  return places
+    .filter((p) => p.id !== placeId)
+    .map((p) => ({
+      id: p.id,
+      name: p.displayName?.text ?? "Unknown",
+      rating: p.rating ?? 0,
+      userRatingCount: p.userRatingCount ?? 0,
+      location:
+        p.location?.latitude != null && p.location?.longitude != null
+          ? { lat: p.location.latitude, lng: p.location.longitude }
+          : null,
+    }));
 }
 
 /**
