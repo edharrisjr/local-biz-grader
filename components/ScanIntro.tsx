@@ -2,14 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUp, Check, Crown, Search, Sparkle } from "lucide-react";
-import type { PlacePrediction } from "@/lib/types";
+import { ArrowUp, Check, Crown, MapPin, Search, Sparkle, Star } from "lucide-react";
+import type { PlacePrediction, PlaceReview } from "@/lib/types";
 
 const SUGGESTION_CHIPS = [
   { icon: Search, label: "How's my Google listing?" },
   { icon: Sparkle, label: "What's broken on my site?" },
   { icon: Crown, label: "Who's beating me and how?" },
 ];
+
+interface PlacePreview {
+  name: string | null;
+  website: string | null;
+  rating: number | null;
+  userRatingCount: number | null;
+  photoCount: number;
+  primaryCategory: string | null;
+  formattedAddress: string | null;
+  reviews: PlaceReview[];
+}
 
 function randomCode(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -32,10 +43,10 @@ function buildSteps(businessLabel: string, website: string | null) {
     { id: "website", label: websiteLabel(website) },
     { id: "ordering", label: "Online ordering & booking" },
     { id: "localSeo", label: "Local SEO signals" },
-  ];
+  ] as const;
 }
 
-const STEP_DURATION_MS = 1150;
+const STEP_DURATION_MS = 1400;
 
 export function ScanIntro() {
   const router = useRouter();
@@ -44,9 +55,9 @@ export function ScanIntro() {
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [showPredictions, setShowPredictions] = useState(false);
   const [selected, setSelected] = useState<PlacePrediction | null>(null);
-  const [website, setWebsite] = useState<string | null>(null);
+  const [preview, setPreview] = useState<PlacePreview | null>(null);
   const [activeStep, setActiveStep] = useState(-1);
-  const [secondsRemaining, setSecondsRemaining] = useState(7);
+  const [secondsRemaining, setSecondsRemaining] = useState(8);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -82,7 +93,7 @@ export function ScanIntro() {
     fetch(`/api/place-preview?placeId=${encodeURIComponent(selected.placeId)}`)
       .then((res) => res.json())
       .then((data) => {
-        if (!cancelled) setWebsite(data.website ?? null);
+        if (!cancelled) setPreview(data);
       })
       .catch(() => {});
 
@@ -119,10 +130,12 @@ export function ScanIntro() {
   }, [phase, selected, router]);
 
   if (phase === "scanning" && selected) {
-    const steps = buildSteps(selected.mainText, website);
+    const steps = buildSteps(selected.mainText, preview?.website ?? null);
+    const currentStepId = steps[activeStep]?.id;
+
     return (
-      <div className="flex w-full flex-1 flex-col items-center justify-center gap-16 px-6 py-16 lg:flex-row lg:gap-24">
-        <div className="w-full max-w-sm">
+      <div className="flex w-full flex-1 flex-col items-center justify-center gap-16 px-6 py-16 lg:flex-row lg:items-start lg:gap-24">
+        <div className="w-full max-w-sm lg:pt-16">
           <h2 className="mb-6 text-2xl font-bold text-[#123524]">Scanning...</h2>
           <ol className="space-y-4">
             {steps.map((step, i) => {
@@ -156,7 +169,15 @@ export function ScanIntro() {
           </div>
         </div>
 
-        <BrowserMockup />
+        <div key={currentStepId} className="animate-fade-in-up w-full max-w-md">
+          {currentStepId === "reviews" && preview?.reviews.length ? (
+            <ReviewsPanel reviews={preview.reviews} />
+          ) : currentStepId === "gbp" && preview ? (
+            <GbpCard preview={preview} />
+          ) : (
+            <BrowserMockup url={currentStepId === "website" ? preview?.website ?? null : null} />
+          )}
+        </div>
       </div>
     );
   }
@@ -245,16 +266,119 @@ function Loader() {
   );
 }
 
-function BrowserMockup() {
+function StarRow({ rating }: { rating: number }) {
   return (
-    <div className="relative w-full max-w-md">
+    <div className="flex gap-0.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Star
+          key={i}
+          size={13}
+          className={i < Math.round(rating) ? "fill-amber-400 text-amber-400" : "fill-black/10 text-black/10"}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ReviewAvatar({ name, photoUrl }: { name: string; photoUrl?: string }) {
+  const [errored, setErrored] = useState(false);
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+
+  if (photoUrl && !errored) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element -- external Google-hosted avatar, not worth remotePatterns config
+      <img
+        src={photoUrl}
+        alt=""
+        width={36}
+        height={36}
+        onError={() => setErrored(true)}
+        className="h-9 w-9 shrink-0 rounded-full object-cover"
+        referrerPolicy="no-referrer"
+      />
+    );
+  }
+
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#123524] text-sm font-semibold text-white">
+      {initial}
+    </span>
+  );
+}
+
+function ReviewsPanel({ reviews }: { reviews: PlaceReview[] }) {
+  return (
+    <div className="max-h-[32rem] space-y-3 overflow-hidden">
+      {reviews.map((review, i) => (
+        <div
+          key={i}
+          className="animate-fade-in-up rounded-xl border border-black/10 bg-white p-4 shadow-sm"
+          style={{ animationDelay: `${i * 0.12}s` }}
+        >
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <ReviewAvatar name={review.authorName} photoUrl={review.authorPhotoUrl} />
+              <div>
+                <p className="text-sm font-semibold text-black/85">{review.authorName}</p>
+                <p className="text-xs text-black/40">{review.relativeTime}</p>
+              </div>
+            </div>
+            <StarRow rating={review.rating} />
+          </div>
+          <p className="line-clamp-2 text-sm text-black/65">{review.text}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function GbpCard({ preview }: { preview: PlacePreview }) {
+  return (
+    <div className="rounded-xl border border-black/10 bg-white p-6 shadow-sm">
+      <div className="mb-4 flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700">
+          <MapPin size={18} />
+        </span>
+        <div>
+          <p className="font-semibold text-black/85">{preview.name}</p>
+          {preview.primaryCategory && (
+            <p className="text-sm text-black/45">{preview.primaryCategory}</p>
+          )}
+        </div>
+      </div>
+      {preview.rating != null && (
+        <div className="mb-3 flex items-center gap-2">
+          <StarRow rating={preview.rating} />
+          <span className="text-sm text-black/60">
+            {preview.rating.toFixed(1)} ({preview.userRatingCount ?? 0} reviews)
+          </span>
+        </div>
+      )}
+      {preview.formattedAddress && (
+        <p className="mb-3 text-sm text-black/55">{preview.formattedAddress}</p>
+      )}
+      <p className="text-sm text-black/45">{preview.photoCount} photos on file</p>
+    </div>
+  );
+}
+
+function BrowserMockup({ url }: { url?: string | null }) {
+  return (
+    <div className="relative w-full">
       <div className="absolute inset-x-6 bottom-0 h-px bg-gradient-to-r from-transparent via-emerald-600/60 to-transparent blur-[1px]" />
       <div className="absolute inset-x-10 -bottom-4 h-8 rounded-full bg-emerald-500/20 blur-2xl" />
       <div className="relative overflow-hidden rounded-xl border border-black/10 bg-white shadow-xl">
-        <div className="flex items-center gap-1.5 border-b border-black/5 px-4 py-3">
-          <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
-          <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
-          <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+        <div className="flex items-center gap-3 border-b border-black/5 px-4 py-3">
+          <div className="flex gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-red-400" />
+            <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
+          </div>
+          {url && (
+            <span className="truncate rounded-md bg-black/[0.04] px-2.5 py-1 text-xs text-black/45">
+              {websiteLabel(url)}
+            </span>
+          )}
         </div>
         <div className="relative h-72 bg-gradient-to-b from-black/[0.02] to-transparent">
           <div className="animate-scan-sweep absolute inset-x-0 h-24 bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent" />

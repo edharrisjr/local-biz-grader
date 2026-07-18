@@ -28,6 +28,14 @@ export interface PlacePrediction {
   secondaryText: string;
 }
 
+export interface PlaceReview {
+  authorName: string;
+  authorPhotoUrl?: string;
+  rating: number;
+  relativeTime: string;
+  text: string;
+}
+
 export interface PlaceDetails {
   name: string;
   formattedAddress?: string;
@@ -40,6 +48,7 @@ export interface PlaceDetails {
   hasHours: boolean;
   openNow?: boolean;
   priceLevel?: string;
+  reviews: PlaceReview[];
 }
 
 export interface PageSpeedResult {

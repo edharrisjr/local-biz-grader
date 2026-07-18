@@ -13,7 +13,15 @@ const FIELD_MASK = [
   "regularOpeningHours",
   "currentOpeningHours",
   "priceLevel",
+  "reviews",
 ].join(",");
+
+interface RawReview {
+  rating?: number;
+  relativePublishTimeDescription?: string;
+  text?: { text?: string };
+  authorAttribution?: { displayName?: string; photoUri?: string };
+}
 
 /**
  * Fetches business details from the Places API (New) using a place_id.
@@ -57,6 +65,15 @@ export async function getPlaceDetails(
     hasHours: Boolean(data.regularOpeningHours),
     openNow: data.currentOpeningHours?.openNow,
     priceLevel: data.priceLevel,
+    reviews: (Array.isArray(data.reviews) ? data.reviews : [])
+      .slice(0, 5)
+      .map((r: RawReview) => ({
+        authorName: r.authorAttribution?.displayName ?? "Anonymous",
+        authorPhotoUrl: r.authorAttribution?.photoUri,
+        rating: r.rating ?? 0,
+        relativeTime: r.relativePublishTimeDescription ?? "",
+        text: r.text?.text ?? "",
+      })),
   };
 }
 

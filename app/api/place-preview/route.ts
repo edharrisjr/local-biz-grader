@@ -11,5 +11,11 @@ export async function GET(request: Request) {
   return NextResponse.json({
     name: place?.name ?? null,
     website: place?.website ?? null,
+    rating: place?.rating ?? null,
+    userRatingCount: place?.userRatingCount ?? null,
+    photoCount: place?.photoCount ?? 0,
+    primaryCategory: place?.primaryCategory ?? null,
+    formattedAddress: place?.formattedAddress ?? null,
+    reviews: place?.reviews ?? [],
   });
 }
