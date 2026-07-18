@@ -2,7 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowUp, Check, Crown, MapPin, Search, Sparkle, Star } from "lucide-react";
+import {
+  ArrowUp,
+  BadgeCheck,
+  Check,
+  Crown,
+  MapPin,
+  Search,
+  ShoppingCart,
+  Sparkle,
+  Star,
+  TrendingUp,
+  type LucideIcon,
+} from "lucide-react";
 import type { PlacePrediction, PlaceReview } from "@/lib/types";
 
 const SUGGESTION_CHIPS = [
@@ -170,12 +182,20 @@ export function ScanIntro() {
         </div>
 
         <div key={currentStepId} className="animate-fade-in-up w-full max-w-md">
-          {currentStepId === "reviews" && preview?.reviews.length ? (
+          {currentStepId === "business" ? (
+            <BusinessFoundCard name={selected.mainText} address={selected.secondaryText} />
+          ) : currentStepId === "reviews" && preview?.reviews.length ? (
             <ReviewsPanel reviews={preview.reviews} />
           ) : currentStepId === "gbp" && preview ? (
             <GbpCard preview={preview} />
+          ) : currentStepId === "website" ? (
+            <BrowserMockup url={preview?.website ?? null} />
+          ) : currentStepId === "ordering" ? (
+            <OrderingCheckCard />
+          ) : currentStepId === "localSeo" ? (
+            <LocalSeoCheckCard category={preview?.primaryCategory ?? null} />
           ) : (
-            <BrowserMockup url={currentStepId === "website" ? preview?.website ?? null : null} />
+            <BrowserMockup url={null} />
           )}
         </div>
       </div>
@@ -362,6 +382,75 @@ function GbpCard({ preview }: { preview: PlacePreview }) {
   );
 }
 
+function BusinessFoundCard({ name, address }: { name: string; address: string }) {
+  return (
+    <div className="rounded-xl border border-black/10 bg-white p-6 shadow-sm">
+      <div className="mb-3 flex items-center gap-3">
+        <span className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-lg bg-emerald-500/20" />
+          <MapPin size={18} className="relative" />
+        </span>
+        <div>
+          <p className="font-semibold text-black/85">{name}</p>
+          <p className="text-sm text-black/45">{address}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 text-sm font-medium text-emerald-700">
+        <BadgeCheck size={16} />
+        Match confirmed on Google
+      </div>
+    </div>
+  );
+}
+
+function CheckingCard({
+  icon: Icon,
+  title,
+  subtitle,
+}: {
+  icon: LucideIcon;
+  title: string;
+  subtitle?: string;
+}) {
+  return (
+    <div className="rounded-xl border border-black/10 bg-white p-6 shadow-sm">
+      <div className="mb-3 flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700">
+          <Icon size={18} />
+        </span>
+        <div>
+          <p className="font-semibold text-black/85">{title}</p>
+          {subtitle && <p className="text-sm text-black/45">{subtitle}</p>}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 text-sm text-black/50">
+        <Loader />
+        Analyzing...
+      </div>
+    </div>
+  );
+}
+
+function OrderingCheckCard() {
+  return (
+    <CheckingCard
+      icon={ShoppingCart}
+      title="Checking for online ordering & booking"
+      subtitle="ChowNow, Toast, OpenTable, Resy, and more"
+    />
+  );
+}
+
+function LocalSeoCheckCard({ category }: { category: string | null }) {
+  return (
+    <CheckingCard
+      icon={TrendingUp}
+      title="Analyzing local search visibility"
+      subtitle={category ? `Ranking signals for "${category}"` : "Category, citations, and listing signals"}
+    />
+  );
+}
+
 function BrowserMockup({ url }: { url?: string | null }) {
   return (
     <div className="relative w-full">
@@ -381,6 +470,19 @@ function BrowserMockup({ url }: { url?: string | null }) {
           )}
         </div>
         <div className="relative h-72 bg-gradient-to-b from-black/[0.02] to-transparent">
+          {url ? (
+            <iframe
+              src={url}
+              title="Website preview"
+              className="pointer-events-none h-full w-full border-0"
+              sandbox="allow-scripts allow-same-origin"
+              loading="eager"
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <Loader />
+            </div>
+          )}
           <div className="animate-scan-sweep absolute inset-x-0 h-24 bg-gradient-to-b from-transparent via-emerald-500/10 to-transparent" />
         </div>
       </div>
