@@ -1,20 +1,19 @@
-import { PreviewLinkForm } from "@/components/PreviewLinkForm";
+import Link from "next/link";
+import { ScanIntro } from "@/components/ScanIntro";
 
 export default function Home() {
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col justify-center gap-8 px-6 py-16">
-      <div>
-        <h1 className="text-2xl font-bold">Local Biz Grader</h1>
-        <p className="mt-2 text-sm text-black/60 dark:text-white/60">
-          Internal tool for generating one-off audit report links during QA.
-          For bulk cold-outreach link generation, use{" "}
-          <code className="rounded bg-black/5 px-1 py-0.5 dark:bg-white/10">
-            npm run generate-links -- prospects.csv
-          </code>
-          .
-        </p>
-      </div>
-      <PreviewLinkForm />
-    </main>
+    <div className="flex flex-1 flex-col bg-[#FAF6EF] text-[#123524]">
+      <nav className="flex items-center justify-between px-6 py-6 sm:px-10">
+        <span className="text-lg font-bold">Local Biz Grader</span>
+        <Link
+          href="/tools"
+          className="rounded-full border border-black/10 px-4 py-1.5 text-sm font-medium text-black/60 transition-colors hover:bg-black/5"
+        >
+          Internal tools
+        </Link>
+      </nav>
+      <ScanIntro />
+    </div>
   );
 }

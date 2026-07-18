@@ -1,4 +1,4 @@
-import type { PlaceDetails } from "./types";
+import type { PlaceDetails, PlacePrediction } from "./types";
 
 const FIELD_MASK = [
   "id",
@@ -85,4 +85,45 @@ export async function findPlaceId(query: string): Promise<string | null> {
 
   const data = await res.json();
   return data.places?.[0]?.id ?? null;
+}
+
+/**
+ * Live-typing business search using the Places API (New) Autocomplete
+ * endpoint. Powers the search box on the landing page.
+ */
+export async function autocompletePlaces(input: string): Promise<PlacePrediction[]> {
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  if (!apiKey || !input.trim()) return [];
+
+  const res = await fetch("https://places.googleapis.com/v1/places:autocomplete", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+    },
+    body: JSON.stringify({
+      input,
+      includedPrimaryTypes: ["restaurant", "food", "store", "establishment"],
+    }),
+  });
+
+  if (!res.ok) return [];
+
+  const data = await res.json();
+  const suggestions = Array.isArray(data.suggestions) ? data.suggestions : [];
+
+  return suggestions
+    .map((s: { placePrediction?: Record<string, unknown> }) => s.placePrediction)
+    .filter((p: unknown): p is Record<string, unknown> => Boolean(p))
+    .map((p: Record<string, unknown>) => {
+      const structuredFormat = p.structuredFormat as
+        | { mainText?: { text?: string }; secondaryText?: { text?: string } }
+        | undefined;
+      const text = p.text as { text?: string } | undefined;
+      return {
+        placeId: p.placeId as string,
+        mainText: structuredFormat?.mainText?.text ?? text?.text ?? "",
+        secondaryText: structuredFormat?.secondaryText?.text ?? "",
+      };
+    });
 }

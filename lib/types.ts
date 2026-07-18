@@ -22,6 +22,12 @@ export interface ReportInput {
   variant?: string;
 }
 
+export interface PlacePrediction {
+  placeId: string;
+  mainText: string;
+  secondaryText: string;
+}
+
 export interface PlaceDetails {
   name: string;
   formattedAddress?: string;
