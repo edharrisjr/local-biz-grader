@@ -62,6 +62,10 @@ export async function getPlaceDetails(
     userRatingCount: data.userRatingCount,
     primaryCategory: data.primaryTypeDisplayName?.text,
     photoCount: Array.isArray(data.photos) ? data.photos.length : 0,
+    photoNames: (Array.isArray(data.photos) ? data.photos : [])
+      .slice(0, 6)
+      .map((p: { name?: string }) => p.name)
+      .filter((name: string | undefined): name is string => Boolean(name)),
     hasHours: Boolean(data.regularOpeningHours),
     openNow: data.currentOpeningHours?.openNow,
     priceLevel: data.priceLevel,

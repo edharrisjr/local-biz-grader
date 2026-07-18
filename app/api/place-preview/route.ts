@@ -17,5 +17,6 @@ export async function GET(request: Request) {
     primaryCategory: place?.primaryCategory ?? null,
     formattedAddress: place?.formattedAddress ?? null,
     reviews: place?.reviews ?? [],
+    photoNames: place?.photoNames ?? [],
   });
 }

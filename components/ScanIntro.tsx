@@ -7,6 +7,7 @@ import {
   BadgeCheck,
   Check,
   Crown,
+  ImageOff,
   MapPin,
   Search,
   ShoppingCart,
@@ -32,6 +33,7 @@ interface PlacePreview {
   primaryCategory: string | null;
   formattedAddress: string | null;
   reviews: PlaceReview[];
+  photoNames: string[];
 }
 
 function randomCode(): string {
@@ -52,6 +54,7 @@ function buildSteps(businessLabel: string, website: string | null) {
     { id: "business", label: businessLabel },
     { id: "gbp", label: "Google Business Profile" },
     { id: "reviews", label: "Reviews & ratings" },
+    { id: "photos", label: "Photo quality and quantity" },
     { id: "website", label: websiteLabel(website) },
     { id: "ordering", label: "Online ordering & booking" },
     { id: "localSeo", label: "Local SEO signals" },
@@ -109,7 +112,7 @@ export function ScanIntro() {
       })
       .catch(() => {});
 
-    const stepCount = 6;
+    const stepCount = 7;
     const timeouts: ReturnType<typeof setTimeout>[] = [];
     // Runs to stepCount (inclusive) so the final step also gets to show its
     // checkmark before redirecting, instead of staying on its spinner.
@@ -188,6 +191,8 @@ export function ScanIntro() {
             <ReviewsPanel reviews={preview.reviews} />
           ) : currentStepId === "gbp" && preview ? (
             <GbpCard preview={preview} />
+          ) : currentStepId === "photos" ? (
+            <PhotosPanel names={preview?.photoNames ?? []} count={preview?.photoCount ?? 0} />
           ) : currentStepId === "website" ? (
             <BrowserMockup url={preview?.website ?? null} />
           ) : currentStepId === "ordering" ? (
@@ -348,6 +353,53 @@ function ReviewsPanel({ reviews }: { reviews: PlaceReview[] }) {
           <p className="line-clamp-2 text-sm text-black/65">{review.text}</p>
         </div>
       ))}
+    </div>
+  );
+}
+
+function PhotoThumb({ name }: { name: string }) {
+  const [errored, setErrored] = useState(false);
+
+  if (errored) {
+    return (
+      <div className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-black/25">
+        <ImageOff size={18} />
+      </div>
+    );
+  }
+
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- proxied Google photo, size varies per source image
+    <img
+      src={`/api/place-photo?name=${encodeURIComponent(name)}`}
+      alt=""
+      onError={() => setErrored(true)}
+      className="aspect-square w-full rounded-lg object-cover"
+    />
+  );
+}
+
+function PhotosPanel({ names, count }: { names: string[]; count: number }) {
+  if (names.length === 0) {
+    return (
+      <CheckingCard
+        icon={ImageOff}
+        title="Checking listing photos"
+        subtitle={count ? `${count} photos on file` : "Looking for photos on the profile"}
+      />
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
+      <div className="grid grid-cols-3 gap-2">
+        {names.map((name, i) => (
+          <div key={name} className="animate-fade-in-up" style={{ animationDelay: `${i * 0.08}s` }}>
+            <PhotoThumb name={name} />
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-sm text-black/45">{count} photos on the listing</p>
     </div>
   );
 }

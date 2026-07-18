@@ -45,6 +45,7 @@ export interface PlaceDetails {
   userRatingCount?: number;
   primaryCategory?: string;
   photoCount: number;
+  photoNames: string[];
   hasHours: boolean;
   openNow?: boolean;
   priceLevel?: string;
