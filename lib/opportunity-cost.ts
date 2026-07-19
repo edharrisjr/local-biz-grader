@@ -27,8 +27,12 @@ export const STANDARD_OPPORTUNITY_COSTS: OpportunityCost[] = [
   {
     id: "followup-retention",
     label: "No customer follow-up system",
-    monthlyAmount: 120,
+    // Narrowly-scoped industry estimate for reactivation loss alone (not
+    // the broader $2,552-$5,604/mo "total CRM gap" figure, which bundles
+    // in other revenue paths beyond just follow-up): guests who haven't
+    // ordered in 30/60/90 days and are never re-engaged.
+    monthlyAmount: 1452,
     detail:
-      "Without automated rebooking reminders or win-back messages, most businesses lose repeat customers they could otherwise retain.",
+      "Lapsed guests (30/60/90 days) x win-back rate x average visit value. Without automated re-engagement, most restaurants lose ~$1,452/mo in reactivation revenue alone.",
   },
 ];
