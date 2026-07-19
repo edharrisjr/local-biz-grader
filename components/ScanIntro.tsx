@@ -39,6 +39,13 @@ interface PlacePreview {
   location: { lat: number; lng: number } | null;
   competitorName: string | null;
   competitorLocation: { lat: number; lng: number } | null;
+  nearbyCompetitors: Array<{
+    name: string;
+    rating: number;
+    userRatingCount: number;
+    priceLevel: string | null;
+    location: { lat: number; lng: number } | null;
+  }>;
 }
 
 const PRICE_LEVEL_SYMBOLS: Record<string, string> = {
@@ -241,7 +248,12 @@ export function ScanIntro() {
           ) : currentStepId === "competitors" ? (
             <CompetitorsCheckCard category={preview?.primaryCategory ?? null} />
           ) : currentStepId === "searchRank" ? (
-            <SearchRankCheckCard category={preview?.primaryCategory ?? null} />
+            <SearchRankMockup
+              name={selected.mainText}
+              city={cityFromSecondaryText(selected.secondaryText)}
+              category={preview?.primaryCategory ?? null}
+              preview={preview}
+            />
           ) : currentStepId === "checklist" ? (
             <ChecklistCheckCard />
           ) : (
@@ -631,13 +643,114 @@ function CompetitorsCheckCard({ category }: { category: string | null }) {
   );
 }
 
-function SearchRankCheckCard({ category }: { category: string | null }) {
+function popularityScore(rating: number, userRatingCount: number): number {
+  return rating * Math.log(userRatingCount + 1);
+}
+
+interface RankedListing {
+  name: string;
+  rating: number;
+  userRatingCount: number;
+  priceLevel: string | null;
+  location: { lat: number; lng: number } | null;
+  isTarget: boolean;
+}
+
+function SearchRankMockup({
+  name,
+  city,
+  category,
+  preview,
+}: {
+  name: string;
+  city: string | null;
+  category: string | null;
+  preview: PlacePreview | null;
+}) {
+  if (!preview || preview.rating == null) {
+    return (
+      <CheckingCard
+        icon={Search}
+        title="Checking your Google search ranking"
+        subtitle={
+          category ? `Where you show up for "${category}" searches` : "Where you show up in local search results"
+        }
+      />
+    );
+  }
+
+  const query = `Best ${category ?? "business"}${city ? ` in ${city}` : " near me"}`;
+
+  const target: RankedListing = {
+    name,
+    rating: preview.rating,
+    userRatingCount: preview.userRatingCount ?? 0,
+    priceLevel: preview.priceLevel,
+    location: preview.location,
+    isTarget: true,
+  };
+  const listings: RankedListing[] = [
+    target,
+    ...preview.nearbyCompetitors.map((c) => ({ ...c, isTarget: false })),
+  ]
+    .sort(
+      (a, b) =>
+        popularityScore(b.rating, b.userRatingCount) - popularityScore(a.rating, a.userRatingCount)
+    )
+    .slice(0, 3);
+
+  const pins = listings
+    .map((l, i) => (l.location ? `${l.location.lat},${l.location.lng},${i + 1}` : null))
+    .filter((p): p is string => p !== null)
+    .join("|");
+
   return (
-    <CheckingCard
-      icon={Search}
-      title="Checking your Google search ranking"
-      subtitle={category ? `Where you show up for "${category}" searches` : "Where you show up in local search results"}
-    />
+    <div className="mx-auto w-full max-w-[280px] overflow-hidden rounded-[2rem] border-8 border-black bg-white shadow-xl">
+      <div className="border-b border-black/10 p-3">
+        <div className="flex items-center gap-2 rounded-full border border-black/15 px-3 py-1.5">
+          <Search size={13} className="shrink-0 text-black/40" />
+          <span className="truncate text-xs text-black/70">{query}</span>
+        </div>
+      </div>
+
+      <div className="p-3">
+        <p className="mb-1.5 text-xs font-semibold text-black/70">Places</p>
+        {pins && (
+          // eslint-disable-next-line @next/next/no-img-element -- proxied Maps Static image
+          <img
+            src={`/api/place-map?pins=${encodeURIComponent(pins)}&size=300x140`}
+            alt="Map"
+            className="mb-2.5 h-24 w-full rounded-lg object-cover"
+          />
+        )}
+        <ul className="space-y-2.5">
+          {listings.map((listing, i) => (
+            <li
+              key={listing.name}
+              className={
+                listing.isTarget ? "-mx-1.5 rounded-lg bg-emerald-500/10 px-1.5 py-1" : ""
+              }
+            >
+              <p
+                className={`truncate text-xs font-semibold ${
+                  listing.isTarget ? "text-emerald-800" : "text-black/80"
+                }`}
+              >
+                {i + 1}. {listing.name}
+              </p>
+              <div className="mt-0.5 flex items-center gap-1 text-[11px] text-black/50">
+                <StarRow rating={listing.rating} />
+                <span>{listing.rating.toFixed(1)}</span>
+                <span>({listing.userRatingCount})</span>
+                {listing.priceLevel && PRICE_LEVEL_SYMBOLS[listing.priceLevel] && (
+                  <span>&middot; {PRICE_LEVEL_SYMBOLS[listing.priceLevel]}</span>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
   );
 }
 

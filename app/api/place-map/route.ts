@@ -10,22 +10,36 @@ export async function GET(request: Request) {
   const lng = params.get("lng");
   const lat2 = params.get("lat2");
   const lng2 = params.get("lng2");
+  // Pipe-delimited "lat,lng,label" triples for a numbered-pin mini map
+  // (the search-rank mockup), e.g. "40.1,-74.2,1|40.2,-74.3,2".
+  const pins = params.get("pins");
+  const size = params.get("size") ?? "500x375";
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
 
-  if (!lat || !lng || !apiKey) {
+  if (!apiKey || (!pins && (!lat || !lng))) {
     return new Response(null, { status: 400 });
   }
 
   const mapUrl = new URL("https://maps.googleapis.com/maps/api/staticmap");
-  mapUrl.searchParams.set("size", "500x375");
+  mapUrl.searchParams.set("size", size);
   mapUrl.searchParams.set("maptype", "roadmap");
-  mapUrl.searchParams.append("markers", `color:0x123524|${lat},${lng}`);
 
-  if (lat2 && lng2) {
+  if (pins) {
+    for (const pin of pins.split("|")) {
+      const [pinLat, pinLng, label] = pin.split(",");
+      if (!pinLat || !pinLng) continue;
+      mapUrl.searchParams.append(
+        "markers",
+        `color:red${label ? `|label:${label}` : ""}|${pinLat},${pinLng}`
+      );
+    }
+  } else if (lat2 && lng2) {
     // With two markers and no explicit center/zoom, Static Maps auto-fits
     // the viewport to include both pins.
+    mapUrl.searchParams.append("markers", `color:0x123524|${lat},${lng}`);
     mapUrl.searchParams.append("markers", `color:red|${lat2},${lng2}`);
   } else {
+    mapUrl.searchParams.append("markers", `color:0x123524|${lat},${lng}`);
     mapUrl.searchParams.set("center", `${lat},${lng}`);
     mapUrl.searchParams.set("zoom", "16");
   }

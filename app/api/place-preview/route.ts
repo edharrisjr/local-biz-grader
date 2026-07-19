@@ -30,5 +30,12 @@ export async function GET(request: Request) {
     location: place?.location ?? null,
     competitorName: competitor?.name ?? null,
     competitorLocation: competitor?.location ?? null,
+    nearbyCompetitors: nearby.slice(0, 2).map((c) => ({
+      name: c.name,
+      rating: c.rating,
+      userRatingCount: c.userRatingCount,
+      priceLevel: c.priceLevel,
+      location: c.location,
+    })),
   });
 }

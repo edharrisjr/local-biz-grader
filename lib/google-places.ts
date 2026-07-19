@@ -123,6 +123,7 @@ interface RawNearbyPlace {
   rating?: number;
   userRatingCount?: number;
   location?: { latitude?: number; longitude?: number };
+  priceLevel?: string;
 }
 
 /**
@@ -134,7 +135,16 @@ export async function findNearbyCompetitors(
   primaryType: string,
   location: { lat: number; lng: number },
   radiusMeters = 8000
-): Promise<Array<{ id: string; name: string; rating: number; userRatingCount: number; location: { lat: number; lng: number } | null }>> {
+): Promise<
+  Array<{
+    id: string;
+    name: string;
+    rating: number;
+    userRatingCount: number;
+    location: { lat: number; lng: number } | null;
+    priceLevel: string | null;
+  }>
+> {
   const apiKey = process.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey) {
     throw new Error("GOOGLE_MAPS_API_KEY is not set");
@@ -145,7 +155,8 @@ export async function findNearbyCompetitors(
     headers: {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": "places.id,places.displayName,places.rating,places.userRatingCount,places.location",
+      "X-Goog-FieldMask":
+        "places.id,places.displayName,places.rating,places.userRatingCount,places.location,places.priceLevel",
     },
     body: JSON.stringify({
       includedTypes: [primaryType],
@@ -176,6 +187,7 @@ export async function findNearbyCompetitors(
         p.location?.latitude != null && p.location?.longitude != null
           ? { lat: p.location.latitude, lng: p.location.longitude }
           : null,
+      priceLevel: p.priceLevel ?? null,
     }));
 }
 
