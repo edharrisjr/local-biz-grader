@@ -394,12 +394,12 @@ function ReviewsPanel({ reviews }: { reviews: PlaceReview[] }) {
   );
 }
 
-function PhotoThumb({ name }: { name: string }) {
+function PhotoThumb({ name, aspectClassName }: { name: string; aspectClassName: string }) {
   const [errored, setErrored] = useState(false);
 
   if (errored) {
     return (
-      <div className="flex aspect-square items-center justify-center rounded-lg bg-black/5 text-black/25">
+      <div className={`flex ${aspectClassName} items-center justify-center rounded bg-black/5 text-black/25`}>
         <ImageOff size={18} />
       </div>
     );
@@ -411,10 +411,19 @@ function PhotoThumb({ name }: { name: string }) {
       src={`/api/place-photo?name=${encodeURIComponent(name)}`}
       alt=""
       onError={() => setErrored(true)}
-      className="aspect-square w-full rounded-lg object-cover"
+      className={`${aspectClassName} w-full rounded object-cover`}
     />
   );
 }
+
+const COLLAGE_LAYOUT = [
+  { top: "0%", left: "4%", width: "36%", rotate: -7, z: 3, aspect: "aspect-[4/3]" },
+  { top: "2%", left: "38%", width: "30%", rotate: 5, z: 2, aspect: "aspect-[4/3]" },
+  { top: "8%", left: "66%", width: "32%", rotate: -4, z: 4, aspect: "aspect-square" },
+  { top: "38%", left: "0%", width: "38%", rotate: 6, z: 5, aspect: "aspect-[3/4]" },
+  { top: "42%", left: "36%", width: "32%", rotate: -5, z: 6, aspect: "aspect-[4/3]" },
+  { top: "48%", left: "64%", width: "34%", rotate: 7, z: 1, aspect: "aspect-[3/4]" },
+] as const;
 
 function PhotosPanel({ names, count }: { names: string[]; count: number }) {
   if (names.length === 0) {
@@ -427,16 +436,31 @@ function PhotosPanel({ names, count }: { names: string[]; count: number }) {
     );
   }
 
+  const slots = COLLAGE_LAYOUT.slice(0, Math.min(names.length, COLLAGE_LAYOUT.length));
+
   return (
-    <div className="rounded-xl border border-black/10 bg-white p-4 shadow-sm">
-      <div className="grid grid-cols-3 gap-2">
-        {names.map((name, i) => (
-          <div key={name} className="animate-fade-in-up" style={{ animationDelay: `${i * 0.08}s` }}>
-            <PhotoThumb name={name} />
+    <div className="relative h-80 w-full overflow-hidden sm:h-96">
+      {slots.map((slot, i) => (
+        <div
+          key={names[i]}
+          className="absolute rounded-lg border-4 border-white bg-white shadow-lg"
+          style={{
+            top: slot.top,
+            left: slot.left,
+            width: slot.width,
+            zIndex: slot.z,
+            transform: `rotate(${slot.rotate}deg)`,
+          }}
+        >
+          <div className="animate-fade-in-up" style={{ animationDelay: `${i * 0.08}s` }}>
+            <PhotoThumb name={names[i]} aspectClassName={slot.aspect} />
           </div>
-        ))}
-      </div>
-      <p className="mt-3 text-sm text-black/45">{count} photos on the listing</p>
+        </div>
+      ))}
+      <div className="animate-scan-sweep pointer-events-none absolute inset-x-0 h-20 bg-gradient-to-b from-transparent via-sky-400/40 to-transparent" />
+      <p className="absolute bottom-3 right-3 z-20 rounded-full bg-black/60 px-3 py-1 text-xs font-medium text-white backdrop-blur-sm">
+        {count} photos on the listing
+      </p>
     </div>
   );
 }
