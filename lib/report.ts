@@ -2,9 +2,10 @@ import { getPlaceDetails } from "./google-places";
 import { getPageSpeed } from "./pagespeed";
 import { detectOrderingSignals } from "./ordering";
 import { fetchWebsiteHtml } from "./website-html";
-import { buildWebsiteChecklist } from "./website-checklist";
+import { analyzeWebsite } from "./website-checklist";
 import { buildCompetitorRanking } from "./competitors";
-import { getSearchRanking } from "./serper";
+import { getSearchRankings } from "./serper";
+import { buildReportSections } from "./scoring-sections";
 import { buildCategoryScores, computeOverallScore, scoreToGrade } from "./scoring";
 import type { Report, ReportInput } from "./types";
 
@@ -24,7 +25,7 @@ export async function buildReport(input: ReportInput): Promise<Report> {
     return null;
   });
 
-  const [pageSpeed, html, competitorRanking, searchRanking] = await Promise.all([
+  const [pageSpeed, html, competitorRanking, searchRankings] = await Promise.all([
     place?.website
       ? withTimeout(
           getPageSpeed(place.website),
@@ -38,18 +39,23 @@ export async function buildReport(input: ReportInput): Promise<Report> {
       : Promise.resolve(null),
     place && input.city
       ? withTimeout(
-          getSearchRanking(place.name, place.website, place.primaryCategory ?? "business", input.city),
-          8000,
-          null
+          getSearchRankings(place.name, place.website, place.primaryCategory ?? "business", input.city),
+          10000,
+          []
         )
-      : Promise.resolve(null),
+      : Promise.resolve([]),
   ]);
 
   const ordering = detectOrderingSignals(Boolean(place?.website), html);
-  const websiteChecklist = place ? buildWebsiteChecklist(html, place, input.city) : null;
+  const websiteAnalysis = place ? analyzeWebsite(html, place, input.city) : null;
 
+  // Legacy 5-category scoring stays untouched — it's what drives the GHL
+  // custom-field push and the grade thresholds already tuned to a live GHL
+  // workflow, independent of the newer 3-section report below.
   const categories = buildCategoryScores(place, pageSpeed, ordering);
   const overallScore = computeOverallScore(categories);
+
+  const sections = buildReportSections(place, websiteAnalysis, ordering, searchRankings);
 
   return {
     input,
@@ -57,8 +63,8 @@ export async function buildReport(input: ReportInput): Promise<Report> {
     pageSpeed,
     ordering,
     competitorRanking,
-    searchRanking,
-    websiteChecklist,
+    searchRankings,
+    sections,
     categories,
     overallScore,
     grade: scoreToGrade(overallScore),

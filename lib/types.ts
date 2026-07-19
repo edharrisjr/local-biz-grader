@@ -57,6 +57,10 @@ export interface PlaceDetails {
   description?: string;
   location?: { lat: number; lng: number };
   reviews: PlaceReview[];
+  /** Human-readable labels for the boolean service attributes Places
+   *  actually returned as true (e.g. "Outdoor seating", "Delivery") —
+   *  omits anything Google didn't report, never inferred. */
+  serviceOptions: string[];
 }
 
 export interface PageSpeedResult {
@@ -107,14 +111,30 @@ export interface SearchRanking {
   topOrganicResult: string | null;
 }
 
+export type ReportSectionId = "searchResults" | "guestExperience" | "localListings";
+
+export interface ReportSection {
+  id: ReportSectionId;
+  label: string;
+  description: string;
+  score: number;
+  maxScore: number;
+  groups: ChecklistGroup[];
+}
+
 export interface Report {
   input: ReportInput;
   place: PlaceDetails | null;
   pageSpeed: PageSpeedResult | null;
   ordering: OrderingSignals | null;
   competitorRanking: CompetitorRanking | null;
-  searchRanking: SearchRanking | null;
-  websiteChecklist: ChecklistGroup[] | null;
+  searchRankings: SearchRanking[];
+  /** New 3-section report structure (Search Results / Guest Experience /
+   *  Local Listings), matching the reference grader UI. Computed
+   *  separately from `categories`/`overallScore`/`grade` below, which are
+   *  left untouched on purpose — those still drive the GHL custom-field
+   *  push and the grade thresholds already tuned to a live GHL workflow. */
+  sections: ReportSection[];
   categories: CategoryScore[];
   overallScore: number;
   grade: string;

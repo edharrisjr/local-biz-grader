@@ -1,5 +1,5 @@
 import * as cheerio from "cheerio";
-import type { ChecklistGroup, PlaceDetails } from "./types";
+import type { ChecklistGroup, OrderingSignals, PlaceDetails } from "./types";
 
 const PLATFORM_DOMAINS = [
   "wixsite.com",
@@ -30,6 +30,53 @@ const SOCIAL_DOMAINS = [
   "youtube.com",
 ];
 
+/** Big third-party marketplaces that take a cut of every order. */
+const MARKETPLACE_DOMAINS = [
+  "doordash.com",
+  "ubereats.com",
+  "grubhub.com",
+  "slice.com",
+  "seamless.com",
+  "postmates.com",
+  "caviar.com",
+  "instacart.com",
+];
+
+/** Broader set of external ordering systems (marketplaces + white-label
+ *  ordering SaaS) — a link to any of these off the site's own domain means
+ *  ordering doesn't happen "on-site". */
+const EXTERNAL_ORDERING_DOMAINS = [
+  ...MARKETPLACE_DOMAINS,
+  "chownow.com",
+  "toasttab.com",
+  "olo.com",
+  "clover.com",
+  "order.online",
+  "ezcater.com",
+];
+
+const ORDER_CTA_PHRASES = [
+  "order online",
+  "order now",
+  "place an order",
+  "submit an order",
+  "online ordering",
+  "get delivery",
+];
+
+const DIRECT_ORDER_BENEFIT_PHRASES = [
+  "save on fees",
+  "no delivery fees",
+  "no service fees",
+  "skip the fees",
+  "order direct and save",
+  "avoid third-party fees",
+  "save money by ordering direct",
+];
+
+const MIN_TEXT_WORDS = 150;
+const MIN_DESCRIPTION_LENGTH = 100;
+
 function hostnameOf(url: string): string {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
@@ -50,15 +97,59 @@ function keywordsFromCategory(category: string | undefined): string[] {
     .filter((w) => w.length > 3 && w !== "restaurant");
 }
 
-export function buildWebsiteChecklist(
+export interface WebsiteAnalysis {
+  hostname: string;
+  isCustomDomain: boolean;
+  hasFavicon: boolean;
+  h1: string;
+  title: string;
+  metaDescription: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  twitterCard?: string;
+  altTagRatio: number | null;
+  totalImages: number;
+  imagesWithAlt: number;
+  phoneOnPage: boolean;
+  addressOnPage: boolean;
+  socialLinks: string[];
+  wordCount: number;
+  avgWordsPerSentence: number;
+  hasExternalOrderingLink: boolean;
+  externalOrderingHref: string | null;
+  hasMarketplaceLink: boolean;
+  hasOrderCta: boolean;
+  hasAboutSection: boolean;
+  hasReviewsSection: boolean;
+  hasFaqSection: boolean;
+  explainsDirectOrderingBenefits: boolean;
+  categoryKeywords: string[];
+  cityLower: string | null;
+}
+
+/**
+ * Parses the site's homepage HTML exactly once; the result feeds the SEO
+ * Content, Guest Experience, and Local Listings checklists so none of them
+ * has to re-parse the same document.
+ */
+export function analyzeWebsite(
   html: string | null,
   place: PlaceDetails,
   city: string | undefined
-): ChecklistGroup[] | null {
+): WebsiteAnalysis | null {
   if (!place.website || html == null) return null;
+  return analyzeWebsiteHtml(html, place, city);
+}
 
+function analyzeWebsiteHtml(
+  html: string,
+  place: PlaceDetails,
+  city: string | undefined
+): WebsiteAnalysis {
   const $ = cheerio.load(html);
-  const bodyText = $("body").text().replace(/\s+/g, " ").toLowerCase();
+  const bodyText = $("body").text().replace(/\s+/g, " ").trim();
+  const bodyTextLower = bodyText.toLowerCase();
   const title = $("title").first().text().trim();
   const h1 = $("h1").first().text().trim();
   const metaDescription = $('meta[name="description"]').attr("content")?.trim() ?? "";
@@ -72,59 +163,135 @@ export function buildWebsiteChecklist(
   const imagesWithAlt = images.filter((_, el) => Boolean($(el).attr("alt")?.trim())).length;
   const totalImages = images.length;
 
-  const hostname = hostnameOf(place.website);
+  const hostname = place.website ? hostnameOf(place.website) : "";
   const isCustomDomain = !PLATFORM_DOMAINS.some((d) => hostname.endsWith(d));
 
-  const hasSocialLink = SOCIAL_DOMAINS.some((d) =>
-    $(`a[href*="${d}"]`).length > 0
-  );
+  const links = $("a[href]");
+  const socialLinks = new Set<string>();
+  let hasExternalOrderingLink = false;
+  let externalOrderingHref: string | null = null;
+  let hasMarketplaceLink = false;
 
-  const cityLower = city?.toLowerCase();
+  links.each((_, el) => {
+    const href = $(el).attr("href");
+    if (!href || !href.startsWith("http")) return;
+    const linkHost = hostnameOf(href);
+    if (!linkHost) return;
+
+    if (SOCIAL_DOMAINS.some((d) => linkHost === d || linkHost.endsWith(`.${d}`))) {
+      socialLinks.add(href);
+    }
+    if (linkHost !== hostname) {
+      if (
+        !hasExternalOrderingLink &&
+        EXTERNAL_ORDERING_DOMAINS.some((d) => linkHost === d || linkHost.endsWith(`.${d}`))
+      ) {
+        hasExternalOrderingLink = true;
+        externalOrderingHref = href;
+      }
+      if (MARKETPLACE_DOMAINS.some((d) => linkHost === d || linkHost.endsWith(`.${d}`))) {
+        hasMarketplaceLink = true;
+      }
+    }
+  });
+
+  const cityLower = city?.toLowerCase() ?? null;
   const categoryKeywords = keywordsFromCategory(place.primaryCategory);
-  const h1Lower = h1.toLowerCase();
-  const titleLower = title.toLowerCase();
 
   const phoneDigits = place.phoneNumber ? digitsOnly(place.phoneNumber).slice(-10) : "";
   const phoneOnPage = phoneDigits ? digitsOnly(bodyText).includes(phoneDigits) : false;
 
   const streetLine = place.formattedAddress?.split(",")[0]?.trim().toLowerCase();
-  const addressOnPage = streetLine ? bodyText.includes(streetLine) : false;
+  const addressOnPage = streetLine ? bodyTextLower.includes(streetLine) : false;
+
+  const words = bodyText.split(/\s+/).filter(Boolean);
+  const sentences = bodyText.split(/[.!?]+/).filter((s) => s.trim().length > 3);
+  const avgWordsPerSentence = sentences.length > 0 ? words.length / sentences.length : 0;
+
+  const hasOrderCta = ORDER_CTA_PHRASES.some((p) => bodyTextLower.includes(p));
+  const explainsDirectOrderingBenefits = DIRECT_ORDER_BENEFIT_PHRASES.some((p) =>
+    bodyTextLower.includes(p)
+  );
+
+  const headings = $("h1, h2, h3")
+    .map((_, el) => $(el).text().trim().toLowerCase())
+    .get();
+  const hasAboutSection = headings.some((h) => /\babout\b/.test(h));
+  const hasFaqSection =
+    headings.some((h) => /\bfaq|frequently asked\b/.test(h)) ||
+    $('[itemtype*="FAQPage"]').length > 0;
+
+  const reviewMarkupCount =
+    $('[itemtype*="Review"], [class*="review" i], [id*="review" i], [class*="testimonial" i]')
+      .length;
+  const hasReviewsSection = reviewMarkupCount >= 3;
+
+  return {
+    hostname,
+    isCustomDomain,
+    hasFavicon,
+    h1,
+    title,
+    metaDescription,
+    ogTitle,
+    ogDescription,
+    ogImage,
+    twitterCard,
+    altTagRatio: totalImages > 0 ? imagesWithAlt / totalImages : null,
+    totalImages,
+    imagesWithAlt,
+    phoneOnPage,
+    addressOnPage,
+    socialLinks: Array.from(socialLinks),
+    wordCount: words.length,
+    avgWordsPerSentence,
+    hasExternalOrderingLink,
+    externalOrderingHref,
+    hasMarketplaceLink,
+    hasOrderCta,
+    hasAboutSection,
+    hasReviewsSection,
+    hasFaqSection,
+    explainsDirectOrderingBenefits,
+    categoryKeywords,
+    cityLower,
+  };
+}
+
+/**
+ * SEO Content checklist for the "Search Results" report section: headline
+ * and metadata signals that affect how the site ranks and how it's
+ * presented in search results.
+ */
+export function buildSeoContentGroups(
+  a: WebsiteAnalysis,
+  place: PlaceDetails
+): ChecklistGroup[] {
+  const h1Lower = a.h1.toLowerCase();
+  const titleLower = a.title.toLowerCase();
+  const descriptionLower = a.metaDescription.toLowerCase();
 
   return [
-    {
-      title: "Domain",
-      items: [
-        {
-          id: "custom-domain",
-          label: "Using a custom domain",
-          passed: isCustomDomain,
-          detail: hostname,
-        },
-        {
-          id: "favicon",
-          label: "Favicon set",
-          passed: hasFavicon,
-        },
-      ],
-    },
     {
       title: "Headline (H1)",
       items: [
         {
-          id: "h1-exists",
-          label: "Page has a headline",
-          passed: h1.length > 0,
-          detail: h1 || undefined,
-        },
-        {
           id: "h1-area",
-          label: "Headline includes the service area",
-          passed: Boolean(cityLower && h1Lower.includes(cityLower)),
+          label: "Includes the service area",
+          passed: Boolean(a.cityLower && h1Lower.includes(a.cityLower)),
+          detail: a.h1 || undefined,
         },
         {
           id: "h1-keyword",
-          label: "Headline includes a relevant keyword",
-          passed: categoryKeywords.some((k) => h1Lower.includes(k)),
+          label: "Includes relevant keywords",
+          passed: a.categoryKeywords.some((k) => h1Lower.includes(k)),
+          detail: a.h1 || undefined,
+        },
+        {
+          id: "h1-exists",
+          label: "Exists",
+          passed: a.h1.length > 0,
+          detail: a.h1 || undefined,
         },
       ],
     },
@@ -132,71 +299,130 @@ export function buildWebsiteChecklist(
       title: "Metadata",
       items: [
         {
-          id: "title-exists",
-          label: "Page title exists",
-          passed: title.length > 0,
-          detail: title || undefined,
+          id: "alt-tags",
+          label: 'Images have "alt tags"',
+          passed: a.totalImages === 0 || (a.altTagRatio ?? 0) >= 0.8,
+          detail: a.totalImages > 0 ? `${a.imagesWithAlt}/${a.totalImages} images` : "0 images with alt tags",
+        },
+        {
+          id: "description-length",
+          label: "Description length",
+          passed: a.metaDescription.length >= MIN_DESCRIPTION_LENGTH,
+          detail: a.metaDescription || undefined,
+        },
+        {
+          id: "description-area",
+          label: "Description includes the service area",
+          passed: Boolean(a.cityLower && descriptionLower.includes(a.cityLower)),
+        },
+        {
+          id: "description-keyword",
+          label: "Description includes relevant keywords",
+          passed: a.categoryKeywords.some((k) => descriptionLower.includes(k)),
+        },
+        {
+          id: "title-matches-gbp",
+          label: "Page title matches Google Business Profile",
+          passed: Boolean(place.name && titleLower.includes(place.name.toLowerCase())),
+          detail: a.title || undefined,
         },
         {
           id: "title-area",
           label: "Page title includes the service area",
-          passed: Boolean(cityLower && titleLower.includes(cityLower)),
+          passed: Boolean(a.cityLower && titleLower.includes(a.cityLower)),
         },
         {
-          id: "description-exists",
-          label: "Meta description exists",
-          passed: metaDescription.length > 0,
-        },
-        {
-          id: "description-length",
-          label: "Meta description is a sufficient length",
-          passed: metaDescription.length >= 70,
-        },
-        {
-          id: "og-title",
-          label: "Open Graph title set",
-          passed: Boolean(ogTitle),
-        },
-        {
-          id: "og-description",
-          label: "Open Graph description set",
-          passed: Boolean(ogDescription),
+          id: "title-keyword",
+          label: "Page title includes a relevant keyword",
+          passed: a.categoryKeywords.some((k) => titleLower.includes(k)),
         },
         {
           id: "og-image",
           label: "Open Graph image set",
-          passed: Boolean(ogImage),
+          passed: Boolean(a.ogImage),
+        },
+      ],
+    },
+  ];
+}
+
+/**
+ * Website content + appearance checklist for the "Guest Experience" report
+ * section — how well the site itself converts and serves visitors.
+ */
+export function buildGuestExperienceGroups(
+  a: WebsiteAnalysis,
+  place: PlaceDetails,
+  ordering: OrderingSignals | null
+): ChecklistGroup[] {
+  const hasOnlineOrdering = ordering?.hasOnlineOrdering ?? false;
+
+  return [
+    {
+      title: "Website content",
+      items: [
+        {
+          id: "on-site-ordering",
+          label: "On-site ordering",
+          passed: !a.hasExternalOrderingLink,
+          detail: a.externalOrderingHref ?? undefined,
         },
         {
-          id: "twitter-card",
-          label: "Twitter card metadata set",
-          passed: Boolean(twitterCard),
+          id: "order-cta",
+          label: "Effective CTA for online ordering",
+          passed: !hasOnlineOrdering || a.hasOrderCta,
+        },
+        {
+          id: "text-content",
+          label: "Sufficient text content",
+          passed: a.wordCount >= MIN_TEXT_WORDS,
+          detail: `${a.wordCount} words`,
+        },
+        {
+          id: "phone-on-page",
+          label: "Phone number",
+          passed: a.phoneOnPage,
+          detail: place.phoneNumber,
+        },
+        {
+          id: "favicon",
+          label: "Favicon",
+          passed: a.hasFavicon,
+        },
+        {
+          id: "direct-ordering-only",
+          label: "Direct ordering links only",
+          passed: !a.hasMarketplaceLink,
         },
       ],
     },
     {
-      title: "Trust signals",
+      title: "Website appearance",
       items: [
         {
-          id: "phone-on-page",
-          label: "Phone number visible on the page",
-          passed: phoneOnPage,
+          id: "about-section",
+          label: "Compelling About Us section",
+          passed: a.hasAboutSection,
         },
         {
-          id: "address-on-page",
-          label: "Address visible on the page",
-          passed: addressOnPage,
+          id: "readable-text",
+          label: "Readable text",
+          passed: a.avgWordsPerSentence > 0 && a.avgWordsPerSentence <= 25,
         },
         {
-          id: "social-links",
-          label: "Social media links present",
-          passed: hasSocialLink,
+          id: "customer-reviews",
+          label: "3 customer reviews",
+          passed: a.hasReviewsSection,
         },
         {
-          id: "alt-tags",
-          label: "Images have alt tags",
-          passed: totalImages === 0 || imagesWithAlt / totalImages >= 0.8,
-          detail: totalImages > 0 ? `${imagesWithAlt}/${totalImages} images` : undefined,
+          id: "faq-section",
+          label: "FAQ's section",
+          passed: a.hasFaqSection,
+        },
+        {
+          id: "direct-ordering-benefits",
+          label: "Explain benefits of direct ordering",
+          passed: !hasOnlineOrdering || a.explainsDirectOrderingBenefits,
         },
       ],
     },

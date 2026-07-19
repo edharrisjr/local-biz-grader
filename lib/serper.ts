@@ -28,23 +28,12 @@ function hostnameOf(url: string): string {
   }
 }
 
-/**
- * Runs a single "best {category} in {city}" search via Serper.dev and finds
- * where the target business ranks in the local map pack and organic
- * results. Real SERP data, not a simulation — but paid per call, so the
- * result is cached (24h) since buildReport() runs on every page load.
- */
-export async function getSearchRanking(
+async function runSerperQuery(
+  query: string,
   businessName: string,
   website: string | undefined,
-  category: string,
-  city: string
+  apiKey: string
 ): Promise<SearchRanking | null> {
-  const apiKey = process.env.SERPER_API_KEY;
-  if (!apiKey || !city) return null;
-
-  const query = `best ${category.toLowerCase()} in ${city}`;
-
   try {
     const res = await fetch("https://google.serper.dev/search", {
       method: "POST",
@@ -79,7 +68,37 @@ export async function getSearchRanking(
     };
   } catch {
     // Network failure (e.g. Serper unreachable) — degrade to no ranking
-    // data rather than crashing the whole report page.
+    // data for this query rather than crashing the whole report page.
     return null;
   }
+}
+
+/**
+ * Runs a small set of real Google searches via Serper.dev (three query
+ * variants on the same category + city) and finds where the target
+ * business ranks in the local map pack and organic results for each. Real
+ * SERP data, not a simulation — but paid per call, so each result is
+ * cached (24h) since buildReport() runs on every page load.
+ */
+export async function getSearchRankings(
+  businessName: string,
+  website: string | undefined,
+  category: string,
+  city: string
+): Promise<SearchRanking[]> {
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey || !city) return [];
+
+  const categoryLower = category.toLowerCase();
+  const queries = [
+    `best ${categoryLower} in ${city}`,
+    `top ${categoryLower} in ${city}`,
+    `${categoryLower} near ${city}`,
+  ];
+
+  const results = await Promise.all(
+    queries.map((query) => runSerperQuery(query, businessName, website, apiKey))
+  );
+
+  return results.filter((r): r is SearchRanking => r !== null);
 }

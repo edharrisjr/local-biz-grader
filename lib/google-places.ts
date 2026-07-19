@@ -17,7 +17,34 @@ const FIELD_MASK = [
   "reviews",
   "location",
   "editorialSummary",
+  "outdoorSeating",
+  "servesVegetarianFood",
+  "delivery",
+  "takeout",
+  "dineIn",
+  "reservable",
+  "goodForChildren",
+  "allowsDogs",
 ].join(",");
+
+/** Human-readable labels for the boolean service attributes Places may
+ *  return — only ones it explicitly reports true make it into the list. */
+const SERVICE_OPTION_LABELS: Record<string, string> = {
+  outdoorSeating: "Outdoor seating",
+  servesVegetarianFood: "Serves vegetarian food",
+  delivery: "Delivery",
+  takeout: "Takeout",
+  dineIn: "Dine-in",
+  reservable: "Accepts reservations",
+  goodForChildren: "Good for children",
+  allowsDogs: "Allows dogs",
+};
+
+function extractServiceOptions(data: Record<string, unknown>): string[] {
+  return Object.entries(SERVICE_OPTION_LABELS)
+    .filter(([field]) => data[field] === true)
+    .map(([, label]) => label);
+}
 
 interface RawReview {
   rating?: number;
@@ -87,6 +114,7 @@ export async function getPlaceDetails(
         relativeTime: r.relativePublishTimeDescription ?? "",
         text: r.text?.text ?? "",
       })),
+    serviceOptions: extractServiceOptions(data),
   };
 }
 
