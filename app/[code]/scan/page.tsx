@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { buildReport } from "@/lib/report";
 import { computeLossEstimate } from "@/lib/scoring";
-import { summarizeSections } from "@/lib/scoring-sections";
+import { computeSectionsLossEstimate, summarizeSections } from "@/lib/scoring-sections";
 import { ReportSidebar } from "@/components/ReportSidebar";
 import { CompetitorWidget } from "@/components/CompetitorWidget";
 import { LossWidget } from "@/components/LossWidget";
@@ -42,7 +42,13 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
   });
 
   const displayName = report.place?.name || report.input.name;
-  const lossEstimate = computeLossEstimate(report.categories);
+  const legacyLoss = computeLossEstimate(report.categories);
+  const sectionsLoss = computeSectionsLossEstimate(report.sections);
+  const lossEstimate = {
+    monthlyLoss: legacyLoss.monthlyLoss + sectionsLoss.monthlyLoss,
+    issueCount: legacyLoss.issueCount + sectionsLoss.issueCount,
+    topIssues: [...legacyLoss.topIssues, ...sectionsLoss.topIssues],
+  };
   const { reviewed, needWork } = summarizeSections(report.sections);
   const [searchResultsSection, guestExperienceSection, localListingsSection] = report.sections;
 
