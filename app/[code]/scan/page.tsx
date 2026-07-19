@@ -3,6 +3,7 @@ import { Sparkles } from "lucide-react";
 import { buildReport } from "@/lib/report";
 import { computeLossEstimate } from "@/lib/scoring";
 import { computeSectionsLossEstimate, summarizeSections } from "@/lib/scoring-sections";
+import { STANDARD_OPPORTUNITY_COSTS } from "@/lib/opportunity-cost";
 import { ReportSidebar } from "@/components/ReportSidebar";
 import { CompetitorWidget } from "@/components/CompetitorWidget";
 import { LossWidget } from "@/components/LossWidget";
@@ -89,7 +90,7 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
             style={{ animationDelay: "0.15s" }}
           >
             {report.competitorRanking && <CompetitorWidget ranking={report.competitorRanking} />}
-            <LossWidget estimate={lossEstimate} />
+            <LossWidget estimate={lossEstimate} opportunities={STANDARD_OPPORTUNITY_COSTS} />
           </section>
 
           <p
