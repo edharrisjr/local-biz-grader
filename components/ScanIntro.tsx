@@ -4,12 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowUp,
-  BadgeCheck,
   Check,
   ClipboardCheck,
   Crown,
   ImageOff,
-  MapPin,
   Search,
   ShoppingCart,
   Sparkle,
@@ -39,6 +37,8 @@ interface PlacePreview {
   priceLevel: string | null;
   description: string | null;
   location: { lat: number; lng: number } | null;
+  competitorName: string | null;
+  competitorLocation: { lat: number; lng: number } | null;
 }
 
 const PRICE_LEVEL_SYMBOLS: Record<string, string> = {
@@ -60,6 +60,10 @@ function websiteLabel(url: string | null): string {
   } catch {
     return url;
   }
+}
+
+function cityFromSecondaryText(secondaryText: string): string | null {
+  return secondaryText.split(",")[1]?.trim() || null;
 }
 
 const STEP_IDS = [
@@ -162,7 +166,7 @@ export function ScanIntro() {
         lp: "homepage",
         grader_lp_variant: "champion",
       });
-      const city = selected.secondaryText.split(",")[1]?.trim();
+      const city = cityFromSecondaryText(selected.secondaryText);
       if (city) params.set("city", city);
       router.push(`/${randomCode()}/scan?${params.toString()}`);
     }, (stepCount + 1) * STEP_DURATION_MS + 400);
@@ -217,7 +221,11 @@ export function ScanIntro() {
 
         <div key={currentStepId} className="animate-fade-in-up w-full max-w-md">
           {currentStepId === "business" ? (
-            <BusinessFoundCard name={selected.mainText} address={selected.secondaryText} />
+            <BusinessMapCard
+              name={selected.mainText}
+              city={cityFromSecondaryText(selected.secondaryText)}
+              preview={preview}
+            />
           ) : currentStepId === "reviews" && preview?.reviews.length ? (
             <ReviewsPanel reviews={preview.reviews} />
           ) : currentStepId === "gbp" && preview ? (
@@ -527,22 +535,39 @@ function GbpCard({ preview }: { preview: PlacePreview }) {
   );
 }
 
-function BusinessFoundCard({ name, address }: { name: string; address: string }) {
+function BusinessMapCard({
+  name,
+  city,
+  preview,
+}: {
+  name: string;
+  city: string | null;
+  preview: PlacePreview | null;
+}) {
+  const location = preview?.location;
+  const query = city ? `${name} in ${city}` : name;
+
   return (
-    <div className="rounded-xl border border-black/10 bg-white p-6 shadow-sm">
-      <div className="mb-3 flex items-center gap-3">
-        <span className="relative flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-700">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-lg bg-emerald-500/20" />
-          <MapPin size={18} className="relative" />
-        </span>
-        <div>
-          <p className="font-semibold text-black/85">{name}</p>
-          <p className="text-sm text-black/45">{address}</p>
+    <div className="relative h-80 w-full overflow-hidden rounded-xl border border-black/10 bg-black/5 shadow-sm sm:h-96">
+      {location ? (
+        // eslint-disable-next-line @next/next/no-img-element -- proxied Maps Static image
+        <img
+          src={`/api/place-map?lat=${location.lat}&lng=${location.lng}${
+            preview?.competitorLocation
+              ? `&lat2=${preview.competitorLocation.lat}&lng2=${preview.competitorLocation.lng}`
+              : ""
+          }`}
+          alt="Map"
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          <Loader />
         </div>
-      </div>
-      <div className="flex items-center gap-2 text-sm font-medium text-emerald-700">
-        <BadgeCheck size={16} />
-        Match confirmed on Google
+      )}
+      <div className="absolute inset-x-4 top-4 flex items-center gap-2.5 rounded-full bg-white/95 px-4 py-2.5 shadow-md backdrop-blur">
+        <Search size={15} className="shrink-0 text-black/40" />
+        <span className="truncate text-sm text-black/75">{query}</span>
       </div>
     </div>
   );

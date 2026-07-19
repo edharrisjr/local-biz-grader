@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPlaceDetails } from "@/lib/google-places";
+import { findNearbyCompetitors, getPlaceDetails } from "@/lib/google-places";
 
 export async function GET(request: Request) {
   const placeId = new URL(request.url).searchParams.get("placeId");
@@ -8,6 +8,13 @@ export async function GET(request: Request) {
   }
 
   const place = await getPlaceDetails(placeId);
+
+  const nearby =
+    place?.primaryType && place.location
+      ? await findNearbyCompetitors(placeId, place.primaryType, place.location).catch(() => [])
+      : [];
+  const competitor = nearby.find((c) => c.location) ?? null;
+
   return NextResponse.json({
     name: place?.name ?? null,
     website: place?.website ?? null,
@@ -21,5 +28,7 @@ export async function GET(request: Request) {
     priceLevel: place?.priceLevel ?? null,
     description: place?.description ?? null,
     location: place?.location ?? null,
+    competitorName: competitor?.name ?? null,
+    competitorLocation: competitor?.location ?? null,
   });
 }
