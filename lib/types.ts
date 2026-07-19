@@ -17,6 +17,17 @@ export interface CategoryScore {
   issues: string[];
 }
 
+/** Answers to the 4 pre-report qualification questions, used to compute a
+ *  personalized (rather than flat industry-benchmark) revenue-loss
+ *  estimate, and carried through to the GHL push once a lead identity
+ *  exists. */
+export interface RevenueQualification {
+  monthlySales: number;
+  avgOrderValue: number;
+  missedCallsPerMonth: number;
+  hasFollowUpSystem: boolean;
+}
+
 export interface ReportInput {
   code: string;
   placeId: string;
@@ -24,6 +35,7 @@ export interface ReportInput {
   city?: string;
   landingPage?: string;
   variant?: string;
+  qualification?: RevenueQualification;
 }
 
 export interface PlacePrediction {

@@ -3,7 +3,11 @@ import { Sparkles } from "lucide-react";
 import { buildReport } from "@/lib/report";
 import { computeLossEstimate } from "@/lib/scoring";
 import { computeSectionsLossEstimate, summarizeSections } from "@/lib/scoring-sections";
-import { STANDARD_OPPORTUNITY_COSTS } from "@/lib/opportunity-cost";
+import {
+  computePersonalizedOpportunityCosts,
+  STANDARD_OPPORTUNITY_COSTS,
+} from "@/lib/opportunity-cost";
+import type { RevenueQualification } from "@/lib/types";
 import { ReportSidebar } from "@/components/ReportSidebar";
 import { CompetitorWidget } from "@/components/CompetitorWidget";
 import { CompetitorTable } from "@/components/CompetitorTable";
@@ -23,6 +27,10 @@ interface PageProps {
     name?: string;
     city?: string;
     grader_lp_variant?: string;
+    sales?: string;
+    aov?: string;
+    missedcalls?: string;
+    followup?: string;
   }>;
 }
 
@@ -34,6 +42,19 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
     notFound();
   }
 
+  let qualification: RevenueQualification | undefined;
+  const monthlySales = Number(sp.sales);
+  const avgOrderValue = Number(sp.aov);
+  const missedCallsPerWeek = Number(sp.missedcalls);
+  if (monthlySales > 0 && avgOrderValue > 0 && sp.followup) {
+    qualification = {
+      monthlySales,
+      avgOrderValue,
+      missedCallsPerMonth: Math.round((missedCallsPerWeek || 0) * (52 / 12)),
+      hasFollowUpSystem: sp.followup === "yes",
+    };
+  }
+
   const report = await buildReport({
     code,
     placeId: sp.placeid,
@@ -41,6 +62,7 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
     city: sp.city,
     landingPage: sp.lp,
     variant: sp.grader_lp_variant,
+    qualification,
   });
 
   const displayName = report.place?.name || report.input.name;
@@ -51,6 +73,9 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
     issueCount: legacyLoss.issueCount + sectionsLoss.issueCount,
     topIssues: [...legacyLoss.topIssues, ...sectionsLoss.topIssues],
   };
+  const opportunityCosts = report.input.qualification
+    ? computePersonalizedOpportunityCosts(report.input.qualification)
+    : STANDARD_OPPORTUNITY_COSTS;
   const { reviewed, needWork } = summarizeSections(report.sections);
   const [searchResultsSection, guestExperienceSection, localListingsSection] = report.sections;
 
@@ -91,7 +116,11 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
             style={{ animationDelay: "0.15s" }}
           >
             {report.competitorRanking && <CompetitorWidget ranking={report.competitorRanking} />}
-            <LossWidget estimate={lossEstimate} opportunities={STANDARD_OPPORTUNITY_COSTS} />
+            <LossWidget
+              estimate={lossEstimate}
+              opportunities={opportunityCosts}
+              personalized={Boolean(report.input.qualification)}
+            />
           </section>
 
           <p

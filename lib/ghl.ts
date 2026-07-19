@@ -1,3 +1,4 @@
+import { computePersonalizedOpportunityCosts } from "./opportunity-cost";
 import type { CategoryId, Report } from "./types";
 
 const GHL_API_BASE = "https://services.leadconnectorhq.com";
@@ -29,6 +30,24 @@ const FIELD_IDS = {
   businessName: "AS9QrGfomQJ4FrqLSTAZ", // grader_business_name
   overallGrade: "RqHMeAOT43RVDynN4vtU", // grader_overall_grade
   overallScore: "JYkuhl9Lh9T31zqTozML", // grader_overall_score
+};
+
+/**
+ * GHL custom field IDs for the pre-report qualification answers (monthly
+ * sales, average order value, missed calls, follow-up system) and the
+ * personalized loss numbers computed from them. NOT YET CONFIGURED — left
+ * blank rather than guessed, since a wrong ID would silently write to the
+ * wrong field. Create these in GHL (Settings -> Custom Fields) and fill in
+ * the real IDs here, the same way CATEGORY_FIELD_IDS above was set up.
+ * Fields with a blank ID are skipped rather than sent to the API.
+ */
+const QUALIFICATION_FIELD_IDS = {
+  monthlySales: "", // e.g. grader_monthly_sales
+  avgOrderValue: "", // e.g. grader_avg_order_value
+  missedCallsPerMonth: "", // e.g. grader_missed_calls_per_month
+  hasFollowUpSystem: "", // e.g. grader_has_followup_system
+  missedCallLossEstimate: "", // e.g. grader_missed_call_loss
+  followUpLossEstimate: "", // e.g. grader_followup_loss
 };
 
 function buildReportUrl(report: Report): string {
@@ -80,6 +99,34 @@ export async function pushLeadToGhl(
       field_value: String(c.score),
     })),
   ];
+
+  if (report.input.qualification) {
+    const q = report.input.qualification;
+    const opportunityCosts = computePersonalizedOpportunityCosts(q);
+    const missedCallLoss = opportunityCosts.find((o) => o.id === "missed-call-textback");
+    const followUpLoss = opportunityCosts.find((o) => o.id === "followup-retention");
+
+    customFields.push(
+      ...(
+        [
+          [QUALIFICATION_FIELD_IDS.monthlySales, String(q.monthlySales)],
+          [QUALIFICATION_FIELD_IDS.avgOrderValue, String(q.avgOrderValue)],
+          [QUALIFICATION_FIELD_IDS.missedCallsPerMonth, String(q.missedCallsPerMonth)],
+          [QUALIFICATION_FIELD_IDS.hasFollowUpSystem, q.hasFollowUpSystem ? "Yes" : "No"],
+          [
+            QUALIFICATION_FIELD_IDS.missedCallLossEstimate,
+            missedCallLoss ? String(missedCallLoss.monthlyAmount) : "",
+          ],
+          [
+            QUALIFICATION_FIELD_IDS.followUpLossEstimate,
+            followUpLoss ? String(followUpLoss.monthlyAmount) : "",
+          ],
+        ] as const
+      )
+        .filter(([id]) => id)
+        .map(([id, field_value]) => ({ id, field_value }))
+    );
+  }
 
   const res = await fetch(`${GHL_API_BASE}/contacts/upsert`, {
     method: "POST",

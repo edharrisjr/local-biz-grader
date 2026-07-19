@@ -7,11 +7,19 @@ const OPPORTUNITY_ICONS: Record<string, typeof PhoneMissed> = {
   "followup-retention": UserX,
 };
 
-function OpportunityList({ opportunities }: { opportunities: OpportunityCost[] }) {
+function OpportunityList({
+  opportunities,
+  personalized,
+}: {
+  opportunities: OpportunityCost[];
+  personalized: boolean;
+}) {
   return (
     <div className="mt-3 space-y-2 border-t border-black/10 pt-3 dark:border-white/10">
       <p className="text-xs font-medium text-black/40 dark:text-white/35">
-        Also typically costing local businesses (industry estimate, not specific to your listing):
+        {personalized
+          ? "Based on your answers:"
+          : "Also typically costing local businesses (industry estimate, not specific to your listing):"}
       </p>
       <ul className="space-y-1.5">
         {opportunities.map((o) => {
@@ -37,9 +45,11 @@ function OpportunityList({ opportunities }: { opportunities: OpportunityCost[] }
 export function LossWidget({
   estimate,
   opportunities,
+  personalized = false,
 }: {
   estimate: LossEstimate;
   opportunities: OpportunityCost[];
+  personalized?: boolean;
 }) {
   const opportunityTotal = opportunities.reduce((sum, o) => sum + o.monthlyAmount, 0);
   const totalLoss = estimate.monthlyLoss + opportunityTotal;
@@ -59,7 +69,7 @@ export function LossWidget({
         <p className="text-sm text-black/55 dark:text-white/50">
           None of your core categories show a significant gap right now.
         </p>
-        <OpportunityList opportunities={opportunities} />
+        <OpportunityList opportunities={opportunities} personalized={personalized} />
       </div>
     );
   }
@@ -83,7 +93,7 @@ export function LossWidget({
           +{estimate.issueCount - 1} more issue{estimate.issueCount - 1 === 1 ? "" : "s"} found below
         </p>
       )}
-      <OpportunityList opportunities={opportunities} />
+      <OpportunityList opportunities={opportunities} personalized={personalized} />
     </div>
   );
 }

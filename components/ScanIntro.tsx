@@ -8,12 +8,15 @@ import {
   ClipboardCheck,
   Crown,
   ImageOff,
+  PhoneMissed,
+  Repeat,
   Search,
   ShoppingCart,
   Sparkle,
   Star,
   Trophy,
   TrendingUp,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import type { PlacePrediction, PlaceReview } from "@/lib/types";
@@ -105,9 +108,36 @@ function buildSteps(businessLabel: string, website: string | null) {
 const STEP_DURATION_MS = 1400;
 const TOTAL_SCAN_SECONDS = Math.ceil((STEP_IDS.length * STEP_DURATION_MS + 400) / 1000);
 
+const QUALIFICATION_QUESTIONS = [
+  {
+    id: "monthlySales",
+    icon: Wallet,
+    title: "What's your average monthly sales?",
+    subtitle: "Just a ballpark — this helps us calculate your real numbers.",
+  },
+  {
+    id: "avgOrderValue",
+    icon: Wallet,
+    title: "What's your average order value?",
+    subtitle: "Per ticket, per visit — whatever fits your business.",
+  },
+  {
+    id: "missedCalls",
+    icon: PhoneMissed,
+    title: "How many calls do you miss each week?",
+    subtitle: "Be honest — most owners underestimate this.",
+  },
+  {
+    id: "followUp",
+    icon: Repeat,
+    title: "Do you follow up with customers who haven't ordered in 30, 60, or 90 days?",
+    subtitle: "This is where most repeat revenue quietly disappears.",
+  },
+] as const;
+
 export function ScanIntro() {
   const router = useRouter();
-  const [phase, setPhase] = useState<"search" | "scanning">("search");
+  const [phase, setPhase] = useState<"search" | "questions" | "scanning">("search");
   const [query, setQuery] = useState("");
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [showPredictions, setShowPredictions] = useState(false);
@@ -115,6 +145,11 @@ export function ScanIntro() {
   const [preview, setPreview] = useState<PlacePreview | null>(null);
   const [activeStep, setActiveStep] = useState(-1);
   const [secondsRemaining, setSecondsRemaining] = useState(TOTAL_SCAN_SECONDS);
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [monthlySales, setMonthlySales] = useState("");
+  const [avgOrderValue, setAvgOrderValue] = useState("");
+  const [missedCalls, setMissedCalls] = useState("");
+  const [hasFollowUp, setHasFollowUp] = useState<boolean | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -140,7 +175,24 @@ export function ScanIntro() {
     setSelected(prediction);
     setQuery(prediction.mainText);
     setShowPredictions(false);
-    setPhase("scanning");
+    setPhase("questions");
+  }
+
+  function answerCurrentQuestion(): boolean {
+    const question = QUALIFICATION_QUESTIONS[questionIndex];
+    if (question.id === "monthlySales") return Number(monthlySales) > 0;
+    if (question.id === "avgOrderValue") return Number(avgOrderValue) > 0;
+    if (question.id === "missedCalls") return missedCalls.trim() !== "" && Number(missedCalls) >= 0;
+    return hasFollowUp !== null;
+  }
+
+  function goToNextQuestion() {
+    if (!answerCurrentQuestion()) return;
+    if (questionIndex < QUALIFICATION_QUESTIONS.length - 1) {
+      setQuestionIndex((i) => i + 1);
+    } else {
+      setPhase("scanning");
+    }
   }
 
   useEffect(() => {
@@ -175,6 +227,10 @@ export function ScanIntro() {
       });
       const city = cityFromSecondaryText(selected.secondaryText);
       if (city) params.set("city", city);
+      if (monthlySales) params.set("sales", monthlySales);
+      if (avgOrderValue) params.set("aov", avgOrderValue);
+      if (missedCalls) params.set("missedcalls", missedCalls);
+      if (hasFollowUp !== null) params.set("followup", hasFollowUp ? "yes" : "no");
       router.push(`/${randomCode()}/scan?${params.toString()}`);
     }, (stepCount + 1) * STEP_DURATION_MS + 400);
 
@@ -184,7 +240,126 @@ export function ScanIntro() {
       clearInterval(interval);
       clearTimeout(redirect);
     };
-  }, [phase, selected, router]);
+  }, [phase, selected, router, monthlySales, avgOrderValue, missedCalls, hasFollowUp]);
+
+  if (phase === "questions" && selected) {
+    const question = QUALIFICATION_QUESTIONS[questionIndex];
+    const Icon = question.icon;
+    const canAdvance = answerCurrentQuestion();
+
+    return (
+      <div className="flex w-full flex-1 flex-col items-center justify-center px-6 py-24">
+        <div className="w-full max-w-lg text-center">
+          <div className="mb-6 flex justify-center gap-1.5">
+            {QUALIFICATION_QUESTIONS.map((q, i) => (
+              <span
+                key={q.id}
+                className={`h-1.5 w-8 rounded-full transition-colors ${
+                  i <= questionIndex ? "bg-[#123524]" : "bg-black/10"
+                }`}
+              />
+            ))}
+          </div>
+
+          <span className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-[#123524]/10 text-[#123524]">
+            <Icon size={22} />
+          </span>
+
+          <h2 className="text-2xl font-bold tracking-tight text-[#123524] sm:text-3xl">
+            {question.title}
+          </h2>
+          <p className="mx-auto mt-2 max-w-sm text-black/50">{question.subtitle}</p>
+
+          <div className="mx-auto mt-8 max-w-xs">
+            {question.id === "monthlySales" && (
+              <div className="flex items-center rounded-2xl bg-black/5 px-5 py-4">
+                <span className="mr-1 text-lg font-semibold text-black/40">$</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  autoFocus
+                  value={monthlySales}
+                  onChange={(e) => setMonthlySales(e.target.value)}
+                  placeholder="15,000"
+                  className="w-full bg-transparent text-lg text-black/80 outline-none placeholder:text-black/30"
+                />
+                <span className="ml-1 shrink-0 text-sm text-black/40">/mo</span>
+              </div>
+            )}
+
+            {question.id === "avgOrderValue" && (
+              <div className="flex items-center rounded-2xl bg-black/5 px-5 py-4">
+                <span className="mr-1 text-lg font-semibold text-black/40">$</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  autoFocus
+                  value={avgOrderValue}
+                  onChange={(e) => setAvgOrderValue(e.target.value)}
+                  placeholder="35"
+                  className="w-full bg-transparent text-lg text-black/80 outline-none placeholder:text-black/30"
+                />
+              </div>
+            )}
+
+            {question.id === "missedCalls" && (
+              <div className="flex items-center rounded-2xl bg-black/5 px-5 py-4">
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  autoFocus
+                  value={missedCalls}
+                  onChange={(e) => setMissedCalls(e.target.value)}
+                  placeholder="10"
+                  className="w-full bg-transparent text-lg text-black/80 outline-none placeholder:text-black/30"
+                />
+                <span className="ml-1 shrink-0 text-sm text-black/40">calls/week</span>
+              </div>
+            )}
+
+            {question.id === "followUp" && (
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setHasFollowUp(true)}
+                  className={`flex-1 rounded-2xl border-2 px-4 py-4 text-sm font-semibold transition-colors ${
+                    hasFollowUp === true
+                      ? "border-[#123524] bg-[#123524] text-white"
+                      : "border-black/10 bg-black/[0.02] text-black/70 hover:border-black/20"
+                  }`}
+                >
+                  Yes, we do
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHasFollowUp(false)}
+                  className={`flex-1 rounded-2xl border-2 px-4 py-4 text-sm font-semibold transition-colors ${
+                    hasFollowUp === false
+                      ? "border-[#123524] bg-[#123524] text-white"
+                      : "border-black/10 bg-black/[0.02] text-black/70 hover:border-black/20"
+                  }`}
+                >
+                  No, not really
+                </button>
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            disabled={!canAdvance}
+            onClick={goToNextQuestion}
+            className="mt-8 rounded-full bg-[#123524] px-8 py-3 text-sm font-semibold text-white transition-opacity disabled:opacity-30"
+          >
+            {questionIndex < QUALIFICATION_QUESTIONS.length - 1 ? "Next" : "See my results"}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (phase === "scanning" && selected) {
     const steps = buildSteps(selected.mainText, preview?.website ?? null);
