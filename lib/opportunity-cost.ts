@@ -17,9 +17,12 @@ export const STANDARD_OPPORTUNITY_COSTS: OpportunityCost[] = [
   {
     id: "missed-call-textback",
     label: "Missed-call text-back",
-    monthlyAmount: 150,
+    // Conservative end of the industry-cited range (~$2,250-$24,000+/mo
+    // depending on call volume and ticket size): 150 missed calls/month x
+    // 60% actionable x $25 average order.
+    monthlyAmount: 2250,
     detail:
-      "Local businesses typically miss 20-30% of inbound calls; automatically texting missed callers recovers a meaningful share of those as booked customers.",
+      "Missed calls x how many would've ordered/booked x average ticket. A modest estimate (150 missed calls/mo, 60% actionable, $25 average order) already runs ~$2,250/mo — higher-volume businesses lose considerably more.",
   },
   {
     id: "followup-retention",

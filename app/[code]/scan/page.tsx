@@ -6,6 +6,7 @@ import { computeSectionsLossEstimate, summarizeSections } from "@/lib/scoring-se
 import { STANDARD_OPPORTUNITY_COSTS } from "@/lib/opportunity-cost";
 import { ReportSidebar } from "@/components/ReportSidebar";
 import { CompetitorWidget } from "@/components/CompetitorWidget";
+import { CompetitorTable } from "@/components/CompetitorTable";
 import { LossWidget } from "@/components/LossWidget";
 import { SearchResultsList } from "@/components/SearchResultsList";
 import { ChecklistSectionCard } from "@/components/ChecklistSectionCard";
@@ -106,6 +107,12 @@ export default async function ScanPage({ params, searchParams }: PageProps) {
           <div className="animate-fade-in-up" style={{ animationDelay: "0.25s" }}>
             <SearchResultsList rankings={report.searchRankings} />
           </div>
+
+          {report.competitorRanking && (
+            <div className="animate-fade-in-up" style={{ animationDelay: "0.28s" }}>
+              <CompetitorTable ranking={report.competitorRanking} />
+            </div>
+          )}
 
           <div className="animate-fade-in-up" style={{ animationDelay: "0.3s" }}>
             <ChecklistSectionCard
